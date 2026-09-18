@@ -59,26 +59,27 @@
 <h1>上线操作指引</h1>
 <p class="sub">目标：微信里能直接打开 · 反馈与分享数据安全留存</p>
 
-<div class="bad">
-<b>动手前先知道两件事</b><br>
-① Vercel 那条路已经放弃 —— 它对中国大陆手机号的验证长期不支持，你卡住不是操作问题。<br>
-② 这一步做完，<b>网站能打开，但反馈表单和双击分享会暂时失效</b>。因为它们的后端还挂在
-<code>zyy.app.workbuddy.host</code> 那个域名上，换了新域名必然跨域失败。第二部分会把它修好。
-<b>先别急，先确认微信能打开 —— 那是最大的不确定性。</b>
+<div class="ok">
+<b>动手前先对一下进度（截至 2026-09-18）</b><br>
+① <b>代码已经全部改好了</b> —— 反馈表单和双击分享在 v6.0 就改成直连 Supabase，
+发布之后不需要再改任何代码。<br>
+② 数据侧只剩两件事：在 Supabase 跑一次建表脚本、设一个站长口令（都在第二部分）。<br>
+③ 线上 <code>zyy.app.workbuddy.host</code> 仍是<b>旧版</b>（微信打不开它），它用的是另一套旧数据库 ——
+跟你现在这份代码不是一回事，别把两边的口令搞混。
 </div>
 
 <h2>第一部分 · 上传到 GitHub（约 10 分钟）</h2>
 
-<h3>1. 装 GitHub 客户端</h3>
+<h3>1. 打开 GitHub 客户端并登录</h3>
+<div class="note">
+<b>GitHub Desktop 已经装在这台机器上了</b>（就在「应用程序」文件夹里），所以不用再下载。
+</div>
 <div class="step"><div class="num">1</div><div class="body">
-<b>下载 GitHub Desktop</b>
-<span>访问 <code>desktop.github.com</code>，点 <span class="btn">Download for macOS</span>。
-下载完双击打开，把图标拖进「应用程序」文件夹。</span>
-</div></div>
-<div class="step"><div class="num">2</div><div class="body">
-<b>登录</b>
-<span>打开 GitHub Desktop → 点 <span class="btn">Sign in to GitHub.com</span> → 会跳到浏览器，
+<b>打开后先登录</b>
+<span>点 <span class="btn">Sign in to GitHub.com</span> → 会跳到浏览器，
 点绿色的 <span class="btn">Authorize desktop</span> → 回到客户端就登录好了。</span>
+<span>如果它问要用哪种方式登录，选 <b>Sign in with your browser</b> —— 在客户端里直接输账号密码那种
+方式 GitHub 已经停用了。</span>
 </div></div>
 
 <h3>2. 把项目交给它管理</h3>
@@ -159,18 +160,20 @@ Branch 选 <b>main</b>，右边的文件夹选 <b>/ (root)</b>，然后点 <span
 先测，真被拦了再买。
 </div>
 
-<h2>第二部分 · 接上数据存储</h2>
+<h2>第二部分 · 把数据库弄好（代码这边已接完，不用改代码）</h2>
 
-<p>等第一部分验证通过，或者你想一次性做完，再执行这部分。做完反馈和分享就恢复了。</p>
-
-<div class="note">
-在此之前，你需要先拿到 Supabase 的两串值。之前复制失败那件事：
-去 <code>Project Settings → API Keys</code>，<b>优先找 <code>sb_publishable_</code> 开头的那种</b>
-（只有 40 多个字符，比 <code>eyJ</code> 开头的 200 多字符好复制得多）。还是复制不了就直接截图发我。
+<div class="ok">
+反馈表单和双击分享在 <b>v6.0</b> 就已经改成直连 Supabase 了，这次发布<b>不需要动任何代码</b>。
+数据侧只剩两件事：<b>① 跑一次建表脚本　　② 设一个站长口令</b>。
 </div>
 
-<h3>建表 + 锁权限</h3>
-<p>左侧 <code>SQL Editor</code> → New query，粘贴执行：</p>
+<h3>1. 建表（跑一次就够，可重复运行）</h3>
+<p>Supabase 左侧 <code>SQL Editor</code> → <code>New query</code>，把项目里的
+<code>supabase-schema.sql</code> <b>全文粘进去</b>，点 <span class="btn">Run</span>。</p>
+<div class="note">
+跑完刷新一下，应该能看到三张表：<code>feedbacks</code>、<code>recos</code>、<code>admin_secret</code>。
+下面两段就是脚本里的内容，放在这里供你核对，<b>不用手动抄</b>：
+</div>
 <pre><span class="c">-- 反馈表</span>
 <span class="k">CREATE TABLE</span> feedbacks (
   id         BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -232,29 +235,52 @@ Branch 选 <b>main</b>，右边的文件夹选 <b>/ (root)</b>，然后点 <span
 <span class="k">GRANT EXECUTE ON FUNCTION</span> read_feedbacks(TEXT) <span class="k">TO</span> anon, authenticated;
 <span class="k">GRANT EXECUTE ON FUNCTION</span> read_recos(TEXT) <span class="k">TO</span> anon, authenticated;</pre>
 
+<h3>2. 设你的站长口令（必须单独跑这一条）</h3>
 <div class="warn">
-<b>注意顺序</b>：口令表要先建、再单独执行一条 INSERT 把你的口令写进去。上面故意没带 INSERT，
-因为里面要填你自己的口令 —— 单独跑这条，把引号里的内容换成你要用的口令：
-<pre><span class="k">INSERT INTO</span> admin_secret <span class="k">VALUES</span> ('owner', md5('wbfb::' || '<span class="k">换成你的口令</span>'));</pre>
-口令只以哈希形式存进数据库，明文不落盘，也没人能从哈希反推出来。
+把引号里的 <b>换成你的口令</b> 四个字替换成你自己要用的口令，然后<b>单独选中这一条</b>点 Run ——
+不要跟上面的建表语句一起跑，更不要不改就直接跑：脚本里那句占位文字是<b>公开写在仓库里</b>的，
+谁都能看见，等于没设口令。
+<pre><span class="k">INSERT INTO</span> admin_secret (k, pass_hash)
+<span class="k">VALUES</span> ('owner', md5('wbfb::' || '<b>换成你的口令</b>'))
+<span class="k">ON CONFLICT</span> (k) <span class="k">DO UPDATE SET</span> pass_hash = EXCLUDED.pass_hash;
+
+<span class="c">-- 自检：应该返回 true</span>
+<span class="k">SELECT</span> k, pass_hash = md5('wbfb::' || '<b>换成你的口令</b>') <span class="k">AS</span> 校验通过 <span class="k">FROM</span> admin_secret;</pre>
+口令只以 md5 形式存在数据库里，明文不落盘，网页代码里也没有。
+想改口令随时重跑这条 —— 它带 <code>ON CONFLICT</code>，重复跑不会报错。
 </div>
 
-<h3>然后交给我</h3>
-<p>把 <b>Project URL</b>、<b>publishable key</b>、以及你设的口令告诉我，我来改代码 ——
-把反馈和分享接到新数据库、顺便把 3D 那 1MB 改成延迟加载，首屏能快一大截。</p>
+<h3>3. 如果登录时说「口令不正确」</h3>
+<p>那个提示只有两种含义，跑这段自检就能分清（把中间换成你在网页上输入的那串）：</p>
+<pre><span class="k">SELECT</span>
+  (<span class="k">SELECT</span> count(*) <span class="k">FROM</span> admin_secret)                  <span class="k">AS</span> 口令行数,
+  (<span class="k">SELECT</span> pass_hash <span class="k">FROM</span> admin_secret <span class="k">WHERE</span> k='owner') <span class="k">AS</span> 库里存的哈希,
+  md5('wbfb::' || '<b>你在网页上输入的口令</b>')          <span class="k">AS</span> 你输入的哈希;</pre>
+<ul>
+<li><b>口令行数 = 0</b> —— 上面第 2 步没跑成功，重跑一次即可。</li>
+<li><b>两个哈希不一样</b> —— 设置的和输入的不是同一个（注意全角字符、首尾空格）。</li>
+</ul>
+
+<div class="bad">
+<b>还要分清一件事</b>：线上旧站 <code>zyy.app.workbuddy.host</code> 的口令归<b>旧 WorkBuddy 云库</b>管
+（那里面还存着之前的 13 条反馈），跟你刚建的 Supabase 库毫无关系。
+在旧站页面上输新口令，一定是「口令不正确」—— 那不是设错了，是问错了库。
+</div>
 
 <h2>投产前验收清单</h2>
 <ul class="check">
-<li>微信（用流量，不连 WiFi）打开站点 —— 页面正常显示</li>
+<li>GitHub Pages 网址能打开，桌面版 / 手机版都正常（手机访问会自动跳到移动版）</li>
+<li>微信里（用流量、不连 WiFi）打开 —— 页面正常显示、能滑动翻页、机器人出现</li>
 <li>提交一条反馈 —— 提示成功，Supabase 的 Table Editor 里真的多了一行</li>
-<li>用错误口令进 <code>?admin=1</code> —— 报错，拿不到任何数据</li>
+<li>用错误口令进 <code>?admin=1</code> —— 报「口令不正确」，拿不到任何数据</li>
 <li>用正确口令进去 —— 能看到刚才那条真实反馈</li>
 <li>双击卡片发一条分享 —— 同样能存进去并读出来</li>
 </ul>
 
-<div class="note">
-本地预览（直接双击 html 文件打开）时提交会失败，因为数据库只放行你配置的正式域名。
-这是正常的，必须在线上域名测。
+<div class="warn">
+<b>一个容易踩的坑</b>：Supabase <b>不限制来源域名</b>（任何网站都能调它），所以
+<b>本地预览时提交也会真的写进正式库</b>，不会失败 —— 你测试填的数据会和真实反馈混在一起。
+测完记得去 Supabase 的 <code>Table Editor</code> 把测试行删掉。
 </div>
 
 </div>
