@@ -3207,9 +3207,6 @@ function makeEnvMap(renderer){
 })();
 </script>
 
-<!-- ══════════ 云端 SDK（反馈表单 / 站长后台依赖） ══════════ -->
-<script src="assets/vendor/workbuddy-cloud-sdk.global.js"></script>
-
 <script>
 /* ══════════════════════════════════════════════════════════════
    04 / 反馈与建议 —— 提交 + 站长后台
@@ -3222,17 +3219,56 @@ function makeEnvMap(renderer){
 (function(){
   'use strict';
 
-  /* ---- publicConfig：由云服务开通后返回的公开配置，可安全放在前端 ---- */
+  /* ---- publicConfig：Supabase 项目地址与公开 key，按设计可放在前端 ---- */
   var CFG = {
-    endpoint: 'https://zyy.app.workbuddy.host',
-    publishableKey: 'wbpk_kteiNeglBbPv26gHoIXauV_mpriFK7Atytuj2PNsdgfUengVTY9XzJj'
+    endpoint: 'https://ixvqxtfzesostrthmygx.supabase.co',
+    publishableKey: 'sb_publishable_B4XFIxP-DG0hzOq_49R8ZA_ebFgeC7m'
   };
 
-  var cloud = null;
-  if (window.WorkBuddyCloud && typeof window.WorkBuddyCloud.createWorkBuddyCloud === 'function') {
-    try { cloud = window.WorkBuddyCloud.createWorkBuddyCloud(CFG); }
-    catch (err) { cloud = null; }
-  }
+  /* 直连 Supabase 的 PostgREST 接口，只用原生 fetch，不依赖任何 SDK。
+     对外形状与原来的云 SDK 保持一致（database.from().insert() / database.rpc()），
+     所以下面所有调用点一行都不用改。
+     Prefer: return=minimal 是必须带的：数据库只给了 INSERT 权限、
+     没有 SELECT 策略，一旦要求回传插入的那一行，PostgREST 会因为没有读权限而报错。 */
+  var cloud = (function(cfg){
+    var HEAD = {
+      'apikey': cfg.publishableKey,
+      'Content-Type': 'application/json',
+      'Prefer': 'return=minimal'
+    };
+    function post(path, body){
+      return fetch(cfg.endpoint + '/rest/v1/' + path, {
+        method: 'POST', headers: HEAD, body: JSON.stringify(body)
+      }).then(function(r){
+        return r.text().then(function(t){
+          var data = null;
+          try { data = t ? JSON.parse(t) : null; } catch (e) { data = null; }
+          if (!r.ok) {
+            var err = new Error((data && (data.message || data.hint)) || ('HTTP ' + r.status));
+            err.code = (data && data.code) || r.status;
+            err.details = data;
+            throw err;
+          }
+          return data;
+        });
+      });
+    }
+    /* 调用点用的是 { data, error } 这套语义，这里统一包一层 */
+    function wrap(p){
+      return p.then(
+        function(d){ return { data: d, error: null }; },
+        function(err){ return { data: null, error: err }; }
+      );
+    }
+    return {
+      database: {
+        from: function(table){
+          return { insert: function(row){ return wrap(post(table, row)); } };
+        },
+        rpc: function(fn, args){ return wrap(post('rpc/' + fn, args || {})); }
+      }
+    };
+  })(CFG);
 
   /* ---------------- 元素 ---------------- */
   var form     = document.getElementById('fbForm');
