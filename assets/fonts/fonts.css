@@ -1,0 +1,30 @@
+/* ============================================================
+   Google Fonts 本地化 —— Archivo + JetBrains Mono（latin 子集）
+   ------------------------------------------------------------
+   原先这两款字体是从 fonts.googleapis.com 拉取的 CSS + 字形，
+   作为 <link rel="stylesheet"> 它是阻塞渲染资源：国内网络下该域名
+   不可达，微信内置浏览器会一直等它超时（常见十几秒白屏）。
+   现在把字形文件放在本地，页面不再依赖任何境外 CDN。
+   · 两款都是可变字体（vf），一个文件覆盖全部字重
+   · unicode-range 保留 latin 段：中文继续走系统字体（PingFang SC）
+   · font-display: swap —— 字体没到先用兜底字形，不允许阻塞渲染
+   ============================================================ */
+
+@font-face {
+  font-family: 'Archivo';
+  font-style: normal;
+  font-weight: 100 900;
+  font-stretch: 100%;
+  font-display: swap;
+  src: url('./archivo-vf.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('./jetbrains-mono-vf.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}

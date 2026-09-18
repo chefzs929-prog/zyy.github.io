@@ -1,0 +1,17 @@
+# 本地筛图 / 截图等临时产物（体积很大，绝不入库）
+.diag/
+.DS_Store
+**/.DS_Store
+
+# WorkBuddy 工程数据与记忆
+.workbuddy/
+
+# WorkBuddy 本地发布状态（含 appId，不入库）
+.wbapp_*.genie
+
+# 历史版本快照：本地保留即可，不随站点部署
+versions/
+
+# 临时文件
+*.tmp
+*.log

@@ -1,0 +1,3667 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#08090a">
+<title>ZHANG Yuyan — 智能医学工程 · 脑机接口</title>
+
+<!-- 字体本地化：原先走 fonts.googleapis.com，国内不可达会阻塞首屏，见 assets/fonts/fonts.css -->
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+
+<style>
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root{
+  /* 深青灰底 + 骨白字 + 锈橙点缀
+     冷底是为了让古铜色机器人跳出来 —— 冷暖互补，主角才有存在感 */
+  --bg:#0f1416;
+  --bg-2:#151b1d;
+  --panel:rgba(230,236,238,.024);
+  --panel-2:rgba(230,236,238,.045);
+  --line:rgba(230,236,238,.09);
+  --line-2:rgba(230,236,238,.18);
+
+  --ink:#e6e9e7;              /* 骨白 */
+  --ink-2:#a4b0b2;
+  --ink-3:#75848a;
+  --ink-4:#4d5a60;
+
+  --silver:#c4cfd4;           /* 银，UI 主色 */
+  --rust:#b4623a;             /* 锈橙，唯一强调色（与机器人同暖调）*/
+  --rust-dim:rgba(180,98,58,.20);
+  --dust:#8a9498;
+
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans:Archivo,"Helvetica Neue","PingFang SC","Hiragino Sans GB",system-ui,-apple-system,sans-serif;
+  --zh:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+
+  --ease:cubic-bezier(.22,.75,.16,1);
+  --dur:.9s;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+html{-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--zh);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(180,98,58,.3);color:#14100c}
+
+/* ============================================================
+   小机器人头光标（简笔画）
+   默认：银线稿 + 天线锈橙圆点；可点元素：双眼点亮锈橙
+   hotspot 16,16 = 头部中心，点击位置即头顶正中
+   ============================================================ */
+:root{
+  --cur-bot:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%23c4cfd4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='16' y1='4.2' x2='16' y2='8.5'/%3E%3Crect x='7' y='8.5' width='18' height='15.5' rx='3.5'/%3E%3Crect x='3.4' y='13' width='3.6' height='7' rx='1.2'/%3E%3Crect x='25' y='13' width='3.6' height='7' rx='1.2'/%3E%3Crect x='10.8' y='13.2' width='3.2' height='3.2' rx='.8'/%3E%3Crect x='18' y='13.2' width='3.2' height='3.2' rx='.8'/%3E%3Cpath d='M11.5 20.5h9'/%3E%3C/g%3E%3Ccircle cx='16' cy='3.2' r='1.7' fill='%23b4623a'/%3E%3C/svg%3E") 16 16, auto;
+  --cur-bot-on:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'%3E%3Cg fill='none' stroke='%23c4cfd4' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='16' y1='4.2' x2='16' y2='8.5'/%3E%3Crect x='7' y='8.5' width='18' height='15.5' rx='3.5'/%3E%3Crect x='3.4' y='13' width='3.6' height='7' rx='1.2'/%3E%3Crect x='25' y='13' width='3.6' height='7' rx='1.2'/%3E%3Cpath d='M11.5 20.5h9'/%3E%3C/g%3E%3Crect x='10.8' y='13.2' width='3.2' height='3.2' rx='.8' fill='%23b4623a'/%3E%3Crect x='18' y='13.2' width='3.2' height='3.2' rx='.8' fill='%23b4623a'/%3E%3Ccircle cx='16' cy='3.2' r='1.7' fill='%23b4623a'/%3E%3C/svg%3E") 16 16, pointer;
+}
+body{cursor:var(--cur-bot)}
+button,a{cursor:var(--cur-bot-on)}
+
+/* ============================================================
+   FX LAYERS  ── 颗粒 / 扫描线 / 暗角 / 划痕
+   ============================================================ */
+.fx{position:fixed;inset:0;pointer-events:none;z-index:80}
+
+/* ------------------------------------------------------------
+   神经背景层 —— 全站最底：在 body 底色之上、内容(.stage z-10)之下
+   ------------------------------------------------------------ */
+.neural-layer{
+  position:fixed;inset:0;z-index:1;pointer-events:none;
+  opacity:0;transition:opacity 2.4s var(--ease) .2s;
+}
+.neural-layer.is-on{opacity:1}
+
+.fx--noise{
+  opacity:.085;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:grain 6s steps(6) infinite;
+}
+@keyframes grain{
+  0%,100%{transform:translate(0,0)}
+  20%{transform:translate(-3%,2%)}
+  40%{transform:translate(2%,-3%)}
+  60%{transform:translate(-2%,-2%)}
+  80%{transform:translate(3%,1%)}
+}
+
+.fx--scan{
+  opacity:.5;
+  background-image:repeating-linear-gradient(
+    0deg,
+    rgba(255,255,255,.028) 0px,
+    rgba(255,255,255,.028) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+/* 废土的尘渍 / 锈斑 / 水痕：中性灰为主，锈色只做点缀 */
+.fx--stain{
+  opacity:.9;
+  background-image:
+    radial-gradient(38% 30% at 17% 20%, rgba(120,140,146,.10), transparent 70%),
+    radial-gradient(30% 26% at 84% 66%, rgba(96,116,120,.09), transparent 72%),
+    radial-gradient(46% 32% at 62% 98%, rgba(180,98,58,.09), transparent 74%),
+    radial-gradient(24% 20% at 92% 12%, rgba(110,128,134,.09), transparent 70%),
+    radial-gradient(34% 24% at 8% 78%, rgba(180,98,58,.06), transparent 72%);
+}
+
+.fx--vignette{
+  background:
+    radial-gradient(118% 90% at 50% 46%, transparent 26%, rgba(5,9,11,.58) 84%, rgba(1,3,4,.94) 100%),
+    radial-gradient(58% 38% at 50% 102%, rgba(180,98,58,.06), transparent 72%);
+}
+
+.fx--scratch{
+  opacity:.5;
+  background-image:
+    linear-gradient(90deg, transparent 11.2%, rgba(255,255,255,.035) 11.2%, rgba(255,255,255,.035) 11.24%, transparent 11.24%),
+    linear-gradient(90deg, transparent 68.4%, rgba(255,255,255,.028) 68.4%, rgba(255,255,255,.028) 68.45%, transparent 68.45%),
+    linear-gradient(0deg, transparent 81.5%, rgba(255,255,255,.03) 81.5%, rgba(255,255,255,.03) 81.54%, transparent 81.54%),
+    linear-gradient(0deg, transparent 22.7%, rgba(0,0,0,.5) 22.7%, rgba(0,0,0,.5) 22.75%, transparent 22.75%);
+}
+
+/* 切换时的故障闪白 */
+.glitch{position:fixed;inset:0;pointer-events:none;z-index:85;opacity:0;
+  background:repeating-linear-gradient(0deg, rgba(255,255,255,.85) 0 1px, transparent 1px 3px);
+  mix-blend-mode:overlay}
+.glitch.on{animation:glitchFlash .46s steps(2,end) 1}
+@keyframes glitchFlash{
+  0%{opacity:0;transform:translateY(0)}
+  10%{opacity:.55;transform:translateY(-4px)}
+  22%{opacity:0;transform:translateY(3px)}
+  34%{opacity:.7;transform:translateY(-2px)}
+  46%{opacity:0;transform:translateY(0)}
+  100%{opacity:0}
+}
+
+/* ============================================================
+   HUD 固定角标
+   ============================================================ */
+.hud{
+  position:fixed;z-index:60;pointer-events:none;
+  font-family:var(--mono);font-size:9.5px;font-weight:400;
+  letter-spacing:.24em;text-transform:uppercase;color:var(--ink-3);
+  line-height:1.9;
+}
+.hud b{color:var(--ink-2);font-weight:500}
+.hud--tl{top:26px;left:34px}
+.hud--tr{top:26px;right:34px;text-align:right}
+.hud--br{bottom:26px;right:34px;text-align:right}
+.hud--bl{bottom:26px;left:34px}
+.hud .dotlive{
+  display:inline-block;width:5px;height:5px;border-radius:50%;
+  background:var(--rust);box-shadow:0 0 8px var(--rust);
+  vertical-align:middle;margin-right:8px;animation:pulse 2.4s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
+
+/* 顶/底细分割线 */
+.rule{position:fixed;left:34px;right:34px;height:1px;background:var(--line);z-index:59;pointer-events:none}
+.rule--t{top:70px}
+.rule--b{bottom:70px}
+
+/* ============================================================
+   PAGER 右侧分页器
+   ============================================================ */
+.pager{
+  position:fixed;right:34px;top:50%;transform:translateY(-50%);
+  z-index:65;display:flex;flex-direction:column;gap:20px;align-items:flex-end;
+}
+.pager button{
+  display:flex;align-items:center;gap:14px;
+  background:none;border:0;padding:2px 0;cursor:var(--cur-bot-on);
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--ink-4);transition:color .5s var(--ease);
+}
+.pager .lbl{opacity:0;transform:translateX(8px);transition:.5s var(--ease)}
+.pager .bar{display:block;width:24px;height:1px;background:currentColor;opacity:.5;transition:.55s var(--ease)}
+.pager button:hover{color:var(--ink-2)}
+.pager button:hover .lbl{opacity:.75;transform:none}
+.pager button.is-on{color:var(--ink)}
+.pager button.is-on .lbl{opacity:1;transform:none}
+.pager button.is-on .bar{width:52px;opacity:1;background:linear-gradient(90deg,var(--ink-3),#fff)}
+
+/* ============================================================
+   STAGE / PAGE
+   ============================================================ */
+.stage{position:fixed;inset:0;z-index:10}
+
+.page{
+  position:absolute;inset:0;overflow:hidden;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transform:translateY(7%) scale(1.03);
+  filter:blur(7px);
+  transition:
+    opacity .78s var(--ease),
+    transform .9s var(--ease),
+    filter .78s var(--ease),
+    visibility 0s linear .9s;
+}
+.page.is-active{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transform:none;filter:blur(0);
+  transition:
+    opacity .78s var(--ease) .1s,
+    transform .95s var(--ease) .1s,
+    filter .78s var(--ease) .1s,
+    visibility 0s linear 0s;
+}
+.page.is-prev{transform:translateY(-7%) scale(1.03)}
+
+.page__inner{
+  height:100%;overflow-y:auto;overflow-x:hidden;
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  padding:104px 0 96px;
+}
+.page__inner::-webkit-scrollbar{width:3px}
+.page__inner::-webkit-scrollbar-track{background:transparent}
+.page__inner::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:9px}
+
+.wrap{width:min(1180px, calc(100% - 132px));margin:0 auto}
+
+/* 进场错峰 */
+.reveal{opacity:0;transform:translateY(20px);
+  transition:opacity .85s var(--ease), transform .95s var(--ease);transition-delay:var(--d,0s)}
+.page.is-active .reveal{opacity:1;transform:none}
+
+/* ============================================================
+   COVER
+   ============================================================ */
+.page--cover{display:flex;align-items:center;justify-content:center}
+
+/* 底层名字暗纹 */
+.wm{
+  position:absolute;inset:-14%;
+  display:flex;flex-direction:column;justify-content:center;
+  gap:.006em;
+  transform:rotate(-5.5deg) scale(1.16);
+  filter:blur(.7px);
+  animation:wmDrift 30s ease-in-out infinite alternate;
+  user-select:none;
+}
+@keyframes wmDrift{
+  from{transform:rotate(-5.5deg) scale(1.16) translate3d(-1.6%,-1.1%,0)}
+  to{transform:rotate(-4.4deg) scale(1.2) translate3d(1.6%,1.1%,0)}
+}
+.wm span{
+  display:block;white-space:nowrap;
+  font-family:var(--sans);font-weight:900;
+  font-size:clamp(64px,11.6vw,172px);
+  line-height:.82;
+  letter-spacing:-.038em;
+  color:rgba(222,232,235,.04);    /* 底纹：比上一版再明显一点点，仍远低于正文 */
+}
+.wm span:nth-child(odd){color:rgba(222,232,235,.026)}
+.wm span:nth-child(1){transform:translateX(-7%)}
+.wm span:nth-child(2){transform:translateX(-17%)}
+.wm span:nth-child(3){transform:translateX(-2%)}
+.wm span:nth-child(4){transform:translateX(-12%)}
+.wm span:nth-child(5){transform:translateX(-6%)}
+.wm span:nth-child(6){transform:translateX(-15%)}
+
+/* 封面主内容 */
+.cover-inner{
+  position:relative;z-index:3;
+  display:flex;flex-direction:column;align-items:center;
+  gap:clamp(14px,2.2vh,28px);
+  padding:0 24px;
+}
+
+/* ── 机器人位 ── */
+.robot-stage{
+  position:relative;
+  height:clamp(250px,54vh,540px);
+  aspect-ratio:1/1;
+  display:grid;place-items:center;
+  opacity:0;
+  transition:opacity .5s var(--ease);
+}
+.page--cover.is-active .robot-stage{animation:rsIn 1.5s var(--ease) .25s forwards}
+@keyframes rsIn{
+  from{opacity:0;transform:scale(.9) translateY(16px);filter:blur(12px)}
+  to{opacity:1;transform:none;filter:blur(0)}
+}
+
+.rs-halo{
+  position:absolute;width:200%;height:200%;border-radius:50%;
+  background:radial-gradient(circle at 50% 52%,
+    rgba(230,242,248,.18) 0%,
+    rgba(155,185,196,.10) 28%,
+    rgba(220,170,95,.07) 52%,
+    transparent 74%);
+  filter:blur(8px);
+  animation:halo 6.5s ease-in-out infinite;
+}
+@keyframes halo{0%,100%{opacity:.5;transform:scale(.95)}50%{opacity:1;transform:scale(1.06)}}
+
+.rs-ring{
+  position:absolute;border-radius:50%;border:1px solid rgba(196,207,212,.12);
+}
+.rs-ring--1{width:100%;height:100%;border-style:dashed;animation:spin 44s linear infinite}
+.rs-ring--2{width:118%;height:118%;border-color:rgba(180,98,58,.09);animation:spin 68s linear infinite reverse}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.rs-canvas{
+  position:relative;z-index:2;
+  width:100%;height:100%;
+  display:block;
+  cursor:grab;
+  touch-action:none;
+  /* 轻微做旧，让 3D 渲染和锈湖质感层统一（材质已降饱和，这层不再叠加 sepia）*/
+  filter:contrast(1.07) saturate(.9);
+}
+.rs-canvas:active{cursor:grabbing}
+
+/* 模型未载入时的占位（载入成功会被 .has-model 隐藏） */
+.rs-slot{
+  position:relative;z-index:2;
+  width:100%;height:100%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+  color:rgba(230,236,238,.28);
+  border:1px dashed rgba(230,236,238,.14);
+  background:linear-gradient(180deg, rgba(230,236,238,.02), rgba(230,236,238,.005));
+}
+.robot-stage.has-model .rs-slot{display:none}
+.rs-slot svg{
+  width:52%;height:auto;opacity:.5;color:rgba(230,236,238,.4);
+  animation:slotPulse 2.6s ease-in-out infinite;
+}
+@keyframes slotPulse{0%,100%{opacity:.26}50%{opacity:.6}}
+.rs-slot.is-error svg{animation:none;opacity:.26}
+
+.rs-slot.is-error{border-color:rgba(168,78,54,.42)}
+.rs-slot .rs-hint{
+  font-family:var(--mono);font-size:9px;letter-spacing:.22em;line-height:2;
+  text-transform:uppercase;text-align:center;color:var(--ink-3);
+}
+.rs-slot .rs-hint em{display:block;font-style:normal;color:var(--ink-2);letter-spacing:.1em}
+
+/* 四角括号 */
+.rs-bracket{position:absolute;width:12px;height:12px;border:1px solid rgba(230,236,238,.26)}
+.rs-bracket.tl{top:-7px;left:-7px;border-right:0;border-bottom:0}
+.rs-bracket.tr{top:-7px;right:-7px;border-left:0;border-bottom:0}
+.rs-bracket.bl{bottom:-7px;left:-7px;border-right:0;border-top:0}
+.rs-bracket.br{bottom:-7px;right:-7px;border-left:0;border-top:0}
+
+@keyframes ttlIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+/* 提示条自己是靠 translateX(-50%) 居中的，入场动画必须带着这个位移，
+   否则最后一帧 transform:none 会把居中推掉，整条往右偏半个身位 */
+@keyframes hintIn{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translate(-50%,0)}}
+
+/* 银金属字：冷调镜面渐变 */
+.chrome{
+  background:linear-gradient(177deg,
+    #ffffff 0%,
+    #e2e7ea 15%,
+    #9ba4aa 33%,
+    #f5f8fa 46%,
+    #828a90 61%,
+    #c6cdd2 78%,
+    #545c62 100%);
+  -webkit-background-clip:text;background-clip:text;
+  color:transparent;
+  -webkit-text-stroke:.4px rgba(255,255,255,.15);
+  filter:drop-shadow(0 3px 22px rgba(4,6,8,.85));
+}
+
+/* 封面底部滚动提示 */
+.scrollhint{
+  position:absolute;left:50%;bottom:26px;transform:translateX(-50%);
+  z-index:4;display:flex;flex-direction:column;align-items:center;gap:9px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--ink-4);
+  opacity:0;transition:opacity .5s var(--ease);
+}
+.page--cover.is-active .scrollhint{animation:hintIn 1.2s var(--ease) 1.5s forwards}
+.scrollhint .track{width:1px;height:40px;background:linear-gradient(180deg,transparent,var(--line-2),transparent);position:relative;overflow:hidden}
+.scrollhint .track::after{content:'';position:absolute;left:0;width:1px;height:14px;background:var(--ink-2);animation:run 2.6s var(--ease) infinite}
+@keyframes run{0%{top:-16px;opacity:0}18%{opacity:1}100%{top:44px;opacity:0}}
+
+/* ============================================================
+   欢迎语浮层 —— 首次点击封面任意处时打字机弹出
+   屏幕正中无框纯文字，赛博朋克霓虹风；整个浏览器只播一次（localStorage）
+   ============================================================ */
+.greet{
+  position:fixed;left:50%;top:50%;
+  transform:translate(-50%,-50%) translateY(10px);
+  z-index:70;                     /* 高于机器人(canvas z-2)与封面内容，低于 FX 层(80) */
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .6s var(--ease), transform .6s var(--ease);
+}
+.greet.is-on{opacity:1;transform:translate(-50%,-50%)}
+.greet__tag{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--ink-4);
+  margin-bottom:14px;
+}
+.greet__tag::before{
+  content:'';width:5px;height:5px;border-radius:50%;
+  background:var(--rust);box-shadow:0 0 8px var(--rust);
+  animation:pulse 2.4s ease-in-out infinite;
+}
+.greet__text{
+  display:flex;align-items:center;gap:14px;
+  font-family:'JetBrains Mono','PingFang SC','Hiragino Sans GB',monospace;  /* 终端等宽 = 机器人输出感 */
+  font-size:clamp(15px,1.8vw,20px);
+  letter-spacing:.06em;
+  color:#eef7fa;
+  white-space:nowrap;
+  min-height:1.4em;
+  text-shadow:
+    0 0 5px rgba(168,216,232,.75),
+    0 0 16px rgba(168,216,232,.4),
+    1px 0 0 rgba(180,98,58,.4),      /* 锈橙色散 */
+    -1px 0 0 rgba(126,231,255,.3);   /* 冷青色散 */
+  animation:neon-flicker 3.2s linear infinite;
+}
+@keyframes neon-flicker{
+  0%,6.9%,7.9%,48.9%,50.9%,100%{opacity:1}
+  7.2%,49.4%{opacity:.62}        /* 霓虹管偶发闪一下 */
+}
+/* 长句（英文歌词）：不缩字号，改为自动折行居中，宽度限制在视口内 */
+.greet__text.is-long{
+  white-space:normal;
+  max-width:min(78vw,540px);
+  line-height:1.55;
+  align-items:center;
+}
+.greet__text.is-long > span{flex:1;min-width:0}
+.greet__bot{
+  width:1.05em;height:1.05em;flex:none;
+  overflow:visible;
+  filter:drop-shadow(0 0 6px rgba(168,216,232,.45));
+}
+.greet__bot .stroke{stroke:#c4cfd4;stroke-width:1.6;fill:none;stroke-linecap:round}
+.greet__bot .eye{fill:#a8d8e8;filter:drop-shadow(0 0 3px rgba(168,216,232,.9))}
+.greet__bot .antenna{fill:var(--rust);filter:drop-shadow(0 0 4px rgba(180,98,58,.9))}
+.greet__caret{
+  display:inline-block;width:2px;height:.9em;flex:none;
+  background:#a8d8e8;
+  box-shadow:0 0 6px rgba(168,216,232,.9);
+  vertical-align:-0.06em;
+  animation:blink 1s steps(2) infinite;
+}
+
+/* ============================================================
+   内页通用
+   ============================================================ */
+.phead{margin-bottom:clamp(30px,4.2vh,52px)}
+.phead__idx{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--ink-4);margin-bottom:18px;
+  display:flex;align-items:center;gap:14px;
+}
+.phead__idx::after{content:'';flex:1;height:1px;background:var(--line);max-width:180px}
+h2.phead__title{
+  font-family:var(--sans);font-weight:800;
+  font-size:clamp(34px,5.6vw,74px);
+  line-height:1;letter-spacing:-.022em;
+}
+.phead__zh{
+  margin-top:16px;font-size:clamp(14px,1.2vw,16px);
+  color:var(--ink-2);letter-spacing:.16em;font-weight:400;
+}
+.phead__lead{
+  margin-top:14px;max-width:60ch;
+  font-size:14px;line-height:2;color:var(--ink-3);
+}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:clamp(18px,2.2vw,34px);align-items:start}
+.col{display:flex;flex-direction:column;gap:clamp(18px,2.2vw,34px)}
+.col > .block:nth-child(1){--d:.06s}
+.col > .block:nth-child(2){--d:.15s}
+.col > .block:nth-child(3){--d:.24s}
+
+.block{
+  position:relative;
+  border:1px solid var(--line);
+  background:var(--panel);
+  padding:clamp(20px,2.1vw,30px);
+  /* 必须带 -webkit- 前缀：Safari（iOS 与 Mac）到现在仍只认带前缀的写法，
+     漏掉的话 iOS/微信里的卡片就没有毛玻璃，而 Android 有 —— 两个平台观感不一致 */
+  -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
+}
+.block::before{
+  content:'';position:absolute;top:-1px;left:-1px;width:22px;height:22px;
+  border-top:1px solid var(--line-2);border-left:1px solid var(--line-2);
+}
+.block::after{
+  content:'';position:absolute;bottom:-1px;right:-1px;width:22px;height:22px;
+  border-bottom:1px solid var(--line-2);border-right:1px solid var(--line-2);
+}
+.block__t{
+  display:flex;align-items:baseline;gap:12px;
+  font-size:13px;font-weight:600;letter-spacing:.2em;color:var(--ink);
+  margin-bottom:20px;text-transform:uppercase;
+  font-family:var(--zh);
+}
+.block__t i{
+  font-family:var(--mono);font-style:normal;font-size:9px;
+  letter-spacing:.16em;color:var(--ink-4);
+}
+.block__t em{
+  margin-left:auto;font-style:normal;font-family:var(--mono);
+  font-size:8.5px;letter-spacing:.18em;color:var(--ink-4);
+  border:1px solid var(--line);padding:3px 7px;
+}
+
+/* 键值表 */
+.kv{display:flex;flex-direction:column}
+.kv > div{
+  display:grid;grid-template-columns:88px 1fr;gap:16px;
+  padding:12px 0;border-bottom:1px solid rgba(255,255,255,.05);
+  align-items:baseline;
+}
+.kv > div:last-child{border-bottom:0;padding-bottom:0}
+.kv dt{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink-4);
+}
+.kv dd{font-size:13.5px;line-height:1.75;color:var(--ink-2)}
+.kv dd b{color:var(--ink);font-weight:500}
+
+/* 研究方向卡片 */
+.dirs{display:flex;flex-direction:column;gap:12px}
+.dir{
+  border-left:1px solid var(--line-2);
+  padding:2px 0 2px 18px;
+  transition:border-color .5s var(--ease), transform .5s var(--ease);
+}
+.dir:hover{border-color:var(--rust);transform:translateX(3px)}
+.dir h4{font-size:14px;font-weight:600;letter-spacing:.06em;margin-bottom:7px}
+.dir h4 span{
+  font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+  color:var(--ink-4);margin-left:9px;text-transform:uppercase;
+}
+.dir p{font-size:12.5px;line-height:1.95;color:var(--ink-3)}
+
+/* 时间线 */
+.tl{position:relative;padding-left:22px}
+.tl::before{content:'';position:absolute;left:3px;top:6px;bottom:9px;width:1px;background:var(--line)}
+.tl__i{position:relative;padding-bottom:22px}
+.tl__i:last-child{padding-bottom:0}
+.tl__i::before{
+  content:'';position:absolute;left:-22px;top:6px;
+  width:7px;height:7px;border-radius:50%;
+  background:var(--bg);border:1px solid var(--ink-4);
+}
+.tl__i.on::before{border-color:var(--rust);box-shadow:0 0 9px var(--rust-dim);background:var(--rust)}
+.tl__y{font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--ink-4);margin-bottom:6px}
+.tl__t{font-size:13.5px;color:var(--ink-2);line-height:1.7}
+.tl__d{font-size:12px;color:var(--ink-4);line-height:1.8;margin-top:3px}
+
+/* 标签 */
+.tags{display:flex;flex-wrap:wrap;gap:8px}
+.tag{
+  font-family:var(--mono);font-size:10px;letter-spacing:.1em;
+  padding:6px 11px;color:var(--ink-2);
+  border:1px solid var(--line);background:rgba(255,255,255,.02);
+  transition:.45s var(--ease);
+}
+.tag:hover{color:#fff;border-color:var(--line-2);background:rgba(255,255,255,.055)}
+.tag--core{color:var(--rust);border-color:rgba(180,98,58,.28);background:rgba(180,98,58,.045)}
+.tag--lite{font-family:var(--zh);letter-spacing:.14em;font-size:11.5px}
+
+/* 兴趣爱好 · 翻转卡片（FlipCard） */
+.hobby-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px;
+}
+.hcard{
+  position:relative;
+  aspect-ratio:1/1.35;
+  perspective:900px;
+  cursor:var(--cur-bot-on);
+  -webkit-tap-highlight-color:transparent;
+}
+.hcard__inner{
+  position:relative;width:100%;height:100%;
+  transform-style:preserve-3d;
+  transition:transform .85s var(--ease);
+}
+/* 移动版：只有点击（.is-flipped）才翻牌。
+   触屏没有真正的 :hover —— 手指点一下会把 hover 状态「粘」在卡上，翻过去就翻不回来了 */
+.hcard.is-flipped .hcard__inner{transform:rotateY(180deg)}
+.hcard__face{
+  position:absolute;inset:0;
+  backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  border:1px solid var(--line);background:var(--panel);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  padding:18px;text-align:center;
+  transition:border-color .5s var(--ease);
+}
+.hcard.is-flipped .hcard__face--front{border-color:var(--line-2);background:var(--panel-2)}
+.hcard__emoji{
+  font-size:clamp(24px,8.4vw,36px);line-height:1;
+  /* 移动版不叠 filter：Safari 会给带 filter 的元素单独开一个合成层，
+     backface-visibility 对这种子层不管用 —— 翻到背面 emoji 还留在屏幕上 */
+}
+.hcard__name{
+  font-size:15px;letter-spacing:.16em;color:var(--ink-2);
+}
+.hcard__face--back{
+  transform:rotateY(180deg);
+  align-items:flex-start;justify-content:center;text-align:left;gap:9px;
+  background:var(--bg-2);
+  border-color:rgba(180,98,58,.35);
+}
+.hcard__back-name{
+  font-family:var(--mono);font-size:11px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--rust);
+}
+.hcard__desc{font-size:12.5px;line-height:1.8;color:var(--ink-3)}
+
+/* 询问我 —— Ask Anything / Vanishing Input（居中主视觉） */
+.askbox{max-width:900px;margin:0 auto 30px}
+.askbox__field{
+  position:relative;display:flex;align-items:center;gap:16px;
+  border:1px solid var(--line);background:var(--panel);
+  padding:clamp(26px,3.2vw,40px) clamp(24px,3vw,38px);
+  transition:border-color .5s var(--ease),background .5s var(--ease);
+}
+.askbox__field:focus-within{
+  border-color:rgba(180,98,58,.55);
+  background:rgba(255,255,255,.03);
+}
+.askbox__ph{
+  position:absolute;left:clamp(24px,3vw,38px);right:100px;
+  font-family:var(--mono);font-size:clamp(16px,1.9vw,21px);
+  letter-spacing:.06em;color:var(--ink-4);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  pointer-events:none;opacity:0;z-index:1;
+}
+.askbox__field.is-idle .askbox__ph{
+  opacity:1;animation:phIn .5s var(--ease);
+}
+@keyframes phIn{
+  from{opacity:0;transform:translateY(7px)}
+  to{opacity:1;transform:none}
+}
+.askbox__input{
+  flex:1;min-width:0;position:relative;z-index:2;
+  background:transparent;border:0;outline:0;
+  font-family:var(--mono);font-size:clamp(16px,1.9vw,21px);
+  letter-spacing:.06em;color:var(--ink);
+  caret-color:var(--rust);
+}
+.askbox__input::placeholder{color:transparent}
+.askbox__input.vanish{animation:vanish .6s var(--ease) forwards}
+@keyframes vanish{
+  0%{opacity:1;filter:blur(0)}
+  55%{opacity:.55;transform:translateY(-7px);filter:blur(3px)}
+  100%{opacity:0;transform:translateY(-16px) scale(.98);filter:blur(7px)}
+}
+.askbox__hint{
+  font-family:var(--mono);font-size:9px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--ink-4);white-space:nowrap;
+  transition:color .5s var(--ease);
+}
+.askbox__field:focus-within .askbox__hint{color:var(--rust)}
+.askbox__log{
+  margin-top:14px;text-align:center;
+  font-family:var(--mono);font-size:9px;
+  letter-spacing:.22em;text-transform:uppercase;color:var(--ink-4);
+  transition:color .5s var(--ease);
+}
+.askbox__log.is-sent{color:var(--rust)}
+
+/* 回答框 —— 命中关键词后自动输出 */
+.askbox__answer{
+  margin-top:18px;
+  border:1px solid var(--line);background:var(--panel-2);
+  padding:clamp(16px,1.8vw,22px) clamp(20px,2.2vw,28px);
+  text-align:left;
+  opacity:0;transform:translateY(8px);
+  transition:opacity .5s var(--ease),transform .5s var(--ease);
+}
+.askbox__answer.is-on{opacity:1;transform:none}
+.askbox__answer-head{
+  display:flex;align-items:center;gap:10px;margin-bottom:10px;
+}
+.askbox__answer-tag{
+  font-family:var(--mono);font-size:9px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--rust);
+}
+.askbox__answer-tag::before{
+  content:'';display:inline-block;width:6px;height:6px;margin-right:8px;
+  background:var(--rust);border-radius:50%;
+  animation:blink 1.4s steps(2) infinite;
+}
+@keyframes blink{50%{opacity:.15}}
+.askbox__answer-text{
+  font-family:var(--zh);font-size:clamp(13px,1.4vw,15px);
+  line-height:1.9;color:var(--ink-2);
+  min-height:3.8em;
+}
+.askbox__answer-text::after{
+  content:'▌';color:var(--rust);margin-left:2px;
+  animation:blink 1s steps(2) infinite;
+}
+
+/* 联系卡片（缩小版，居中跟在输入框下方） */
+.contact-list{display:flex;flex-direction:column;gap:9px;max-width:620px;margin:0 auto}
+.ccard{
+  position:relative;display:flex;align-items:center;gap:clamp(14px,2vw,26px);
+  border:1px solid var(--line);background:var(--panel);
+  padding:clamp(12px,1.3vw,16px) clamp(16px,1.8vw,22px);
+  transition:.6s var(--ease);overflow:hidden;
+}
+.ccard::before{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:1px;
+  background:linear-gradient(180deg,transparent,var(--rust),transparent);
+  opacity:0;transition:.6s var(--ease);
+}
+.ccard:hover{background:rgba(255,255,255,.045);border-color:var(--line-2);transform:translateX(5px)}
+.ccard:hover::before{opacity:1}
+.ccard__k{font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--ink-4)}
+.ccard__main{flex:1;display:flex;flex-direction:column;gap:4px;min-width:0}
+.ccard__main b{
+  font-family:var(--sans);font-size:clamp(13px,1.3vw,16px);
+  font-weight:700;letter-spacing:.01em;color:var(--ink);
+}
+.ccard__main em{
+  font-style:normal;font-family:var(--mono);font-size:9.5px;
+  letter-spacing:.1em;color:var(--ink-3);
+  overflow-wrap:anywhere;
+}
+.ccard__arrow{
+  font-family:var(--sans);font-size:15px;color:var(--ink-4);
+  transition:.55s var(--ease);
+}
+.ccard:hover .ccard__arrow{color:var(--rust);transform:translate(4px,-4px)}
+
+/* ═══════════════════════════════════════════════════════════
+   04 / 反馈与建议 —— 表单
+   ═══════════════════════════════════════════════════════════ */
+.fb{
+  max-width:760px;margin:0 auto;
+  border:1px solid var(--line);background:var(--panel);
+  padding:clamp(22px,2.8vw,36px);
+}
+.fb__row{margin-bottom:clamp(18px,2.2vw,26px)}
+.fb__lab{
+  display:flex;align-items:baseline;flex-wrap:wrap;gap:4px 12px;
+  margin-bottom:11px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--ink-3);
+}
+.fb__lab em{
+  font-style:normal;font-family:var(--zh);font-size:11px;
+  letter-spacing:.03em;color:var(--ink-4);text-transform:none;
+}
+.fb__lab i{
+  font-style:normal;font-family:var(--zh);font-size:11px;
+  letter-spacing:.03em;color:var(--ink-4);text-transform:none;
+}
+.fb__inp,.fb__txt{
+  width:100%;display:block;
+  background:rgba(255,255,255,.022);
+  border:1px solid var(--line);color:var(--ink);
+  font-family:var(--mono);font-size:14px;letter-spacing:.03em;
+  padding:13px 15px;outline:0;border-radius:0;
+  transition:border-color .45s var(--ease),background .45s var(--ease);
+}
+.fb__txt{
+  font-family:var(--zh);font-size:14px;line-height:1.9;
+  letter-spacing:0;min-height:126px;resize:vertical;
+}
+.fb__inp::placeholder,.fb__txt::placeholder{color:var(--ink-4)}
+.fb__inp:focus,.fb__txt:focus{
+  border-color:rgba(180,98,58,.55);background:rgba(255,255,255,.04);
+}
+.fb__row.is-bad .fb__inp,.fb__row.is-bad .fb__txt{border-color:rgba(194,96,63,.7)}
+
+/* 评分 —— 1~5 星 */
+.fb__rate{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.fb__star{
+  width:36px;height:36px;flex:0 0 auto;
+  display:grid;place-items:center;
+  background:transparent;border:1px solid var(--line);
+  color:var(--ink-4);font-size:15px;line-height:1;cursor:pointer;
+  transition:.35s var(--ease);
+  -webkit-appearance:none;appearance:none;font-family:var(--sans);
+}
+.fb__star:hover{color:var(--rust);border-color:var(--line-2)}
+.fb__star.is-on{
+  color:var(--rust);border-color:rgba(180,98,58,.55);
+  background:rgba(180,98,58,.09);
+}
+.fb__score{
+  font-family:var(--mono);font-size:9px;letter-spacing:.2em;
+  color:var(--ink-4);text-transform:uppercase;white-space:nowrap;
+}
+.fb__score b{color:var(--rust);font-weight:400}
+
+/* 单选题 —— 职业 / 设备 */
+.fb__opts{display:flex;flex-wrap:wrap;gap:9px}
+.fb__opt{
+  -webkit-appearance:none;appearance:none;
+  background:rgba(255,255,255,.022);
+  border:1px solid var(--line);color:var(--ink-2);
+  font-family:var(--zh);font-size:13px;letter-spacing:.06em;
+  padding:11px 18px;cursor:pointer;
+  transition:.4s var(--ease);
+}
+.fb__opt:hover{color:var(--ink);border-color:var(--line-2);background:rgba(255,255,255,.05)}
+.fb__opt.is-on{
+  color:var(--ink);border-color:rgba(180,98,58,.55);
+  background:rgba(180,98,58,.09);
+}
+
+/* 后台：职业 / 设备标签 */
+.adm__tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:9px}
+.adm__tags span{
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-3);
+  border:1px solid var(--line);padding:3px 7px;
+}
+
+.fb__btn{
+  margin-top:clamp(20px,2.4vw,28px);width:100%;
+  border:1px solid var(--line-2);background:transparent;color:var(--ink);
+  font-family:var(--mono);font-size:10px;letter-spacing:.3em;
+  text-transform:uppercase;padding:16px;cursor:pointer;
+  transition:.5s var(--ease);
+}
+.fb__btn:hover:not([disabled]){
+  background:rgba(180,98,58,.11);border-color:rgba(180,98,58,.6);color:#fff;
+}
+.fb__btn[disabled]{opacity:.42;cursor:default}
+.fb__log{
+  margin-top:15px;text-align:center;
+  font-family:var(--mono);font-size:9px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--ink-4);min-height:1.4em;
+  transition:color .5s var(--ease);
+}
+.fb__log.is-ok{color:var(--rust)}
+.fb__log.is-err{color:#c2603f}
+.fb__note{
+  max-width:760px;margin:clamp(18px,2vw,26px) auto 0;
+  font-size:12px;line-height:2;color:var(--ink-4);
+}
+.fb__note b{color:var(--ink-3);font-weight:400}
+
+/* ═══════════════════════════════════════════════════════════
+   站长后台（隐藏入口，凭口令进入）
+   ═══════════════════════════════════════════════════════════ */
+.adm{
+  position:fixed;inset:0;z-index:300;display:none;
+  background:rgba(8,10,11,.94);
+  -webkit-backdrop-filter:blur(7px);backdrop-filter:blur(7px);
+  overflow:auto;padding:clamp(24px,5vh,60px) 18px;
+}
+.adm.is-on{display:block}
+.adm__box{
+  max-width:840px;margin:0 auto;
+  border:1px solid var(--line-2);background:#111618;
+  padding:clamp(20px,2.6vw,32px);
+}
+.adm__head{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:14px;flex-wrap:wrap;
+  padding-bottom:16px;border-bottom:1px solid var(--line);
+}
+.adm__ttl{
+  font-family:var(--mono);font-size:10px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--rust);
+}
+.adm__close{
+  background:transparent;border:1px solid var(--line);color:var(--ink-3);
+  font-family:var(--mono);font-size:9px;letter-spacing:.2em;
+  padding:7px 12px;cursor:pointer;transition:.4s var(--ease);
+}
+.adm__close:hover{color:var(--ink);border-color:var(--line-2)}
+.adm__gate{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.adm__gate input{
+  flex:1;min-width:200px;
+  background:rgba(255,255,255,.022);border:1px solid var(--line);
+  color:var(--ink);font-family:var(--mono);font-size:13px;
+  padding:12px 14px;outline:0;
+}
+.adm__gate input:focus{border-color:rgba(180,98,58,.55)}
+.adm__gate button{
+  border:1px solid var(--line-2);background:transparent;color:var(--ink);
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;
+  text-transform:uppercase;padding:12px 20px;cursor:pointer;
+  transition:.45s var(--ease);
+}
+.adm__gate button:hover{background:rgba(180,98,58,.11);border-color:rgba(180,98,58,.6)}
+.adm__msg{
+  margin-top:12px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.2em;text-transform:uppercase;color:#c2603f;min-height:1.3em;
+}
+.adm__stat{
+  display:flex;gap:clamp(16px,3vw,34px);flex-wrap:wrap;
+  margin-top:22px;padding:16px 0;border-bottom:1px solid var(--line);
+}
+.adm__stat div{display:flex;flex-direction:column;gap:6px}
+.adm__stat span{
+  font-family:var(--mono);font-size:9px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink-4);
+}
+.adm__stat b{
+  font-family:var(--sans);font-size:22px;font-weight:800;color:var(--ink);
+}
+.adm__stat b em{font-style:normal;color:var(--rust)}
+.adm__list{margin-top:8px;display:flex;flex-direction:column}
+.adm__item{
+  display:flex;gap:clamp(12px,1.8vw,20px);
+  padding:18px 0;border-bottom:1px solid var(--line);
+}
+.adm__meta{
+  flex:0 0 auto;width:104px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.12em;
+  color:var(--ink-4);line-height:1.7;padding-top:2px;
+}
+.adm__meta i{font-style:normal;color:var(--rust);display:block}
+.adm__body{flex:1;min-width:0}
+.adm__name{
+  font-family:var(--sans);font-size:14px;font-weight:700;color:var(--ink);
+  margin-bottom:7px;
+}
+.adm__txt{
+  font-family:var(--zh);font-size:13.5px;line-height:1.95;
+  color:var(--ink-2);white-space:pre-wrap;overflow-wrap:anywhere;
+}
+.adm__empty{
+  margin-top:26px;text-align:center;
+  font-family:var(--zh);font-size:13px;color:var(--ink-4);
+}
+.adm__foot{
+  margin-top:20px;display:flex;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:9px;letter-spacing:.18em;
+  color:var(--ink-4);text-transform:uppercase;
+}
+@media (max-width:560px){
+  .adm__meta{width:auto;flex-direction:row;gap:10px}
+  .fb__star{width:32px;height:32px}
+}
+
+/* ═══════════════════════════════════════════════════════════
+   分享弹窗 —— 双击「音乐 / 影视」卡片唤出
+   ═══════════════════════════════════════════════════════════ */
+.share{
+  position:fixed;inset:0;z-index:320;display:none;
+  background:rgba(8,10,11,.9);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  padding:clamp(20px,6vh,60px) 18px;overflow:auto;
+}
+.share.is-on{display:block}
+.share__box{
+  max-width:560px;margin:0 auto;
+  border:1px solid var(--line-2);background:#111618;
+  padding:clamp(20px,3vw,30px);
+  animation:shareIn .55s var(--ease) both;
+}
+@keyframes shareIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.share__head{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding-bottom:14px;border-bottom:1px solid var(--line);
+}
+.share__ttl{
+  font-family:var(--mono);font-size:10px;letter-spacing:.3em;
+  text-transform:uppercase;color:var(--rust);
+}
+.share__close{
+  background:transparent;border:1px solid var(--line);color:var(--ink-3);
+  font-family:var(--mono);font-size:9px;letter-spacing:.2em;
+  padding:7px 12px;cursor:pointer;transition:.4s var(--ease);
+}
+.share__close:hover{color:var(--ink);border-color:var(--line-2)}
+.share__tip{
+  margin-top:18px;
+  font-family:var(--zh);font-size:15.5px;line-height:1.75;color:var(--ink);
+}
+.share__txt{
+  margin-top:14px;width:100%;min-height:132px;resize:vertical;
+  background:rgba(255,255,255,.022);border:1px solid var(--line);
+  color:var(--ink);font-family:var(--zh);font-size:14px;line-height:1.9;
+  padding:14px;outline:0;transition:border-color .45s var(--ease);
+}
+.share__txt:focus{border-color:rgba(180,98,58,.55)}
+.share__acts{display:flex;gap:10px;margin-top:16px}
+.share__acts button{flex:1;cursor:pointer;transition:.45s var(--ease)}
+.share__cancel{
+  border:1px solid var(--line);background:transparent;color:var(--ink-3);
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;
+  text-transform:uppercase;padding:14px;
+}
+.share__cancel:hover{color:var(--ink);border-color:var(--line-2)}
+.share__send{
+  border:1px solid var(--line-2);background:transparent;color:var(--ink);
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;
+  text-transform:uppercase;padding:14px;
+}
+.share__send:hover:not([disabled]){background:rgba(180,98,58,.11);border-color:rgba(180,98,58,.6);color:#fff}
+.share__send[disabled]{opacity:.42;cursor:default}
+.share__log{
+  margin-top:13px;text-align:center;min-height:1.3em;
+  font-family:var(--mono);font-size:9px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--ink-4);transition:color .5s var(--ease);
+}
+.share__log.is-ok{color:var(--rust)}
+.share__log.is-err{color:#c2603f}
+.share__priv{
+  margin-top:11px;text-align:center;
+  font-family:var(--zh);font-size:11.5px;line-height:1.8;color:var(--ink-4);
+}
+
+/* 站长后台 —— 收到的分享 */
+.adm__sec{
+  display:flex;align-items:center;gap:12px;
+  margin-top:30px;padding-bottom:12px;border-bottom:1px solid var(--line);
+}
+.adm__num{
+  font-family:var(--mono);font-size:9px;letter-spacing:.16em;
+  color:var(--ink-3);border:1px solid var(--line);padding:2px 8px;
+}
+
+.cfoot{
+  margin-top:clamp(30px,4vh,52px);
+  padding-top:20px;border-top:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:14px;justify-content:space-between;
+  font-family:var(--mono);font-size:9px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--ink-4);
+}
+
+/* ============================================================
+   CARD SPOTLIGHT —— 鼠标跟随聚光灯（灵感来自 CardSpotlight）
+   .spot 由 JS 注入卡片内，--mx/--my 为光标在卡内的局部坐标
+   ============================================================ */
+.spot-host{position:relative}
+/* 翻转卡片的正反面必须保持 absolute 铺满，否则正面会被压成内容高度 */
+.hcard__face.spot-host{position:absolute}
+.spot{
+  position:absolute;inset:0;z-index:0;pointer-events:none;
+  opacity:0;transition:opacity .55s var(--ease);
+  background:radial-gradient(
+    circle var(--spot-size,240px) at var(--mx,50%) var(--my,50%),
+    var(--spot-color,rgba(196,207,212,.12)) 0%,
+    transparent 72%
+  );
+}
+.spot-host:hover > .spot{opacity:1}
+
+/* 各类卡片的光斑配色 / 尺寸 */
+.block .spot{--spot-color:rgba(196,207,212,.10);--spot-size:280px}
+.hcard__face--front .spot{--spot-color:rgba(196,207,212,.14);--spot-size:180px}
+.ccard .spot{--spot-color:rgba(180,98,58,.13);--spot-size:320px}
+
+/* 光斑需要卡片裁切溢出 */
+.hcard__face{overflow:hidden}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:1000px){
+  .wrap{width:calc(100% - 68px)}
+  .grid2{grid-template-columns:1fr}
+  .pager .lbl{display:none}
+  .pager{gap:16px}
+}
+@media (max-width:640px){
+  .hud--tl,.hud--tr{top:18px}
+  .hud--tl{left:20px}
+  .hud--tr{right:20px}
+  .rule{left:20px;right:20px}
+  .rule--t{top:56px}
+  .rule--b{bottom:56px}
+  .hud--br{bottom:18px;right:20px}
+  .hud--bl{display:none}
+  .wrap{width:calc(100% - 44px)}
+  .page__inner{padding:84px 0 80px}
+  .cover-inner{gap:16px;padding:0 18px}
+  .scrollhint{bottom:70px}
+  .pager{right:16px}
+  .pager .bar{width:16px}
+  .pager button.is-on .bar{width:30px}
+  .kv > div{grid-template-columns:76px 1fr;gap:12px}
+  .ccard{gap:16px;padding:20px}
+  .ccard__arrow{font-size:16px}
+}
+
+/* 矮屏 / 横屏手机：压缩封面 */
+@media (max-height:700px){
+  .robot-stage{height:clamp(160px,40vh,330px)}
+  .cover-inner{gap:12px}
+  .scrollhint{display:none}
+  .page__inner{padding:88px 0 76px}
+}
+
+
+/* ============================================================
+   移动版集中覆写 —— index-mobile.html 专用
+   上面所有桌面端规则保持不动，移动端适配集中在这一块。
+   放在样式表最末尾，同权重时以这里为准。
+   ============================================================ */
+html,body{overscroll-behavior:none}
+body{
+  cursor:auto;
+  -webkit-tap-highlight-color:transparent;
+}
+button,a{cursor:auto}
+
+/* 机器人周围的装饰层不再吃手势 —— 桌面版靠鼠标无所谓，移动端会导致首页滑不动 */
+.wm,.rs-halo,.rs-ring,.rs-bracket{pointer-events:none}
+button,a,input,textarea,select,.hcard,.fb__star,.pager button{touch-action:manipulation}
+
+/* ── 版心 / 安全区 ── */
+.wrap{width:calc(100% - 34px);max-width:660px}
+.page__inner{
+  padding:calc(env(safe-area-inset-top,0px) + 84px) 0 calc(env(safe-area-inset-bottom,0px) + 104px);
+  touch-action:pan-y;               /* 只允许纵向，避免和系统手势打架 */
+  scrollbar-width:none;
+}
+.page__inner::-webkit-scrollbar{width:0}
+
+.hud{font-size:8.6px;letter-spacing:.18em;line-height:1.8}
+.hud--tl,.hud--tr{top:calc(env(safe-area-inset-top,0px) + 13px)}
+.hud--tl{left:17px}
+.hud--tr{right:17px;text-align:right}
+.hud--bl,.hud--br{display:none}      /* 底部两侧让位给「桌面版」入口和分页器 */
+.rule{left:16px;right:16px}
+.rule--t{top:calc(env(safe-area-inset-top,0px) + 52px)}
+.rule--b{bottom:calc(env(safe-area-inset-bottom,0px) + 46px)}
+
+/* ── 分页器：右侧竖条 → 底部居中（避开内容、手指够得到）── */
+.pager{
+  top:auto;right:auto;left:50%;
+  bottom:calc(env(safe-area-inset-bottom,0px) + 13px);
+  transform:translateX(-50%);
+  flex-direction:row;align-items:center;gap:11px;
+}
+.pager button{padding:11px 7px}      /* 加大点按面积，但视觉不变 */
+.pager .bar{width:20px;height:2px}
+.pager button.is-on .bar{width:34px;height:2px}
+
+/* ── 桌面版入口 ── */
+.mfoot{
+  position:fixed;z-index:66;
+  left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+}
+.mfoot a{
+  display:inline-block;
+  font-family:var(--mono);font-size:8.6px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-4);border:1px solid var(--line);
+  padding:9px 11px;background:rgba(15,20,22,.72);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+}
+
+/* ── 封面 ── */
+.robot-stage{height:min(42vh,340px)}
+.cover-inner{gap:14px;padding:0 18px}
+/* 手机视口高度普遍低于 700px，桌面版的矮屏规则会把提示条整个藏掉，这里放开 */
+.scrollhint{display:flex}
+.scrollhint{
+  bottom:calc(env(safe-area-inset-bottom,0px) + 58px);
+  gap:11px;pointer-events:none;      /* 不抢封面的点击（点这儿照样叫机器人说话）*/
+}
+.scrollhint .lbl{font-size:9px;letter-spacing:.24em;color:var(--ink-3)}
+.scrollhint .track{height:30px}
+
+/* ── 02 关于我 ── */
+.phead{margin-bottom:26px}
+.phead__idx{margin-bottom:14px;gap:10px}
+.phead__idx::after{max-width:70px}
+h2.phead__title{font-size:clamp(30px,9vw,44px)}
+.phead__zh{margin-top:12px;font-size:13px;letter-spacing:.12em}
+.phead__lead{margin-top:11px;font-size:13px;line-height:1.95}
+
+.grid2{gap:16px}
+.col{gap:16px}
+.block{padding:17px 15px}
+.block::before,.block::after{width:16px;height:16px}
+.block__t{margin-bottom:15px;gap:9px;flex-wrap:wrap;font-size:12.5px;letter-spacing:.14em}
+.block__t em{margin-left:0;font-size:8px;padding:3px 6px}
+
+.kv > div{grid-template-columns:60px 1fr;gap:12px;padding:11px 0}
+.kv dt{font-size:8.6px;letter-spacing:.14em}
+.kv dd{font-size:12.8px;line-height:1.72}
+/* 校名：明确两行，杜绝「天津大学 — 香港理工大学深圳未来技术…」在任意字后面断行 */
+.dd-school{display:flex;flex-direction:column;gap:4px}
+.dd-school b{font-weight:500;color:var(--ink-3)}
+.dd-school i{font-style:normal;color:var(--ink-4)}
+
+.dirs{gap:11px}
+.dir{padding-left:14px}
+.dir h4{font-size:13px;margin-bottom:5px}
+.dir h4 span{margin-left:7px;font-size:8.4px}
+.dir p{font-size:12px;line-height:1.85}
+
+.tl{padding-left:20px}
+.tl__i{padding-bottom:18px}
+.tl__y{font-size:9px}
+.tl__t{font-size:12.8px;line-height:1.65}
+.tl__d{font-size:11.5px;line-height:1.75}
+
+.tags{gap:7px}
+.tag{font-size:9.5px;padding:6px 9px;letter-spacing:.08em}
+.tag--lite{font-size:11px}
+
+/* ── 爱好翻牌卡 ── */
+.hobby-grid{gap:9px}
+.hcard{aspect-ratio:1/1.55}
+.hcard__face{padding:10px 8px;gap:9px}
+.hcard__face--back{
+  padding:13px 11px;gap:6px;
+  overflow-y:auto;                  /* 极窄屏作为兜底，正常情况不会真的滚 */
+  overscroll-behavior:contain;
+}
+.hcard__back-name{font-size:9px;letter-spacing:.14em}
+.hcard__desc{font-size:10.5px;line-height:1.72;overflow-wrap:anywhere}
+/* Safari 会给带 filter / 处于 3D 层级的子元素单独建合成层，
+   backface-visibility 对这种子层无效 → 翻转后 emoji 还留在屏幕上。
+   这里不依赖 backface，直接用 opacity + visibility 显式切换正反面。 */
+.hcard__face--front{
+  visibility:visible;opacity:1;
+  transition:border-color .5s var(--ease), background .5s var(--ease), opacity .25s var(--ease), visibility 0s;
+}
+.hcard__face--back{visibility:hidden;opacity:0}
+.hcard.is-flipped .hcard__face--front{
+  opacity:0;visibility:hidden;
+  transition:border-color .5s var(--ease), background .5s var(--ease), opacity .25s var(--ease), visibility 0s .25s;
+}
+.hcard.is-flipped .hcard__face--back{
+  opacity:1;visibility:visible;
+  transition:opacity .3s var(--ease) .18s, visibility 0s .18s;
+}
+
+/* ── 03 ASK ── */
+.askbox{margin-bottom:24px}
+.askbox__field{padding:20px 16px;gap:10px}
+.askbox__ph{left:16px;right:60px;font-size:15px}
+.askbox__input{font-size:16px}        /* 16px 起步，避免 iOS 聚焦时自动放大页面 */
+.askbox__hint{font-size:8px;letter-spacing:.16em}
+.askbox__log{margin-top:11px;font-size:8.4px;letter-spacing:.18em}
+.askbox__answer{margin-top:14px;padding:14px 15px}
+.askbox__answer-text{font-size:13px;line-height:1.85;min-height:3.6em}
+.contact-list{gap:8px}
+.ccard{gap:13px;padding:14px 15px}
+.ccard__k{font-size:8.4px}
+.ccard__main b{font-size:13.5px}
+.ccard__main em{font-size:9px;line-height:1.6}
+.ccard__arrow{font-size:14px}
+.cfoot{margin-top:26px;gap:7px;flex-direction:column;align-items:flex-start;font-size:8.4px}
+
+/* ── 04 FEEDBACK ── */
+.fb{padding:18px 15px}
+.fb__row{margin-bottom:16px}
+.fb__lab{margin-bottom:9px;gap:2px 10px}
+.fb__lab span{font-size:8.4px;letter-spacing:.2em}
+.fb__lab i,.fb__lab em{font-size:10.5px}
+.fb__inp,.fb__txt{font-size:16px;padding:13px}   /* 同样是为了防 iOS 聚焦缩放 */
+/* iOS 规则：输入框字号 < 16px 时 Safari 会自动放大整个页面，且往往不复原。
+   askbox 与 share 的输入框早就按 16px 处理过，反馈表单这两处漏了，补上。 */
+.fb__inp,.fb__txt{font-size:16px}
+.fb__txt{min-height:120px;line-height:1.85}
+.fb__rate{gap:7px}
+.fb__star{width:44px;height:44px;font-size:18px} /* 44px 是小拇指友好尺寸 */
+.fb__score{font-size:8.4px}
+.fb__score b{font-size:11px}
+.fb__btn{margin-top:18px;padding:17px;letter-spacing:.24em}
+.fb__btn{margin-top:18px;padding:17px;letter-spacing:.24em}
+.fb__opt{padding:12px 16px;min-height:44px;font-size:13.5px}
+.fb__note{font-size:11.5px;line-height:1.9}
+
+/* ── 站长后台（?admin=1 在手机上也能用）── */
+.adm{padding:calc(env(safe-area-inset-top,0px) + 22px) 14px calc(env(safe-area-inset-bottom,0px) + 32px)}
+.adm__gate{flex-direction:column;gap:9px}
+.adm__gate input{min-width:0;width:100%;font-size:16px}
+.adm__stat{gap:18px}
+.adm__meta{width:auto;flex-direction:row;gap:10px}
+.adm__item{gap:14px}
+
+/* ── 分享弹窗（双击音乐 / 影视卡片唤出）── */
+.share{padding:calc(env(safe-area-inset-top,0px) + 22px) 14px calc(env(safe-area-inset-bottom,0px) + 32px)}
+.share__tip{font-size:15px}
+.share__txt{font-size:16px;min-height:120px}   /* 16px 防 iOS 聚焦缩放 */
+.share__cancel,.share__send{min-height:44px}   /* 44px 触控尺寸 */
+.share__priv{font-size:11px}
+
+/* ── 矮屏 / 横屏 ── */
+@media (max-height:520px){
+  .robot-stage{height:min(62vh,240px)}
+  .page__inner{padding-top:calc(env(safe-area-inset-top,0px) + 68px)}
+  .pager{bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}
+  .scrollhint{bottom:calc(env(safe-area-inset-bottom,0px) + 46px)}
+  .cover-inner{gap:10px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.14s !important}
+  .fx--noise{animation:none}
+}
+</style>
+</head>
+
+<body>
+
+<!-- ══════════ 神经背景层（最底） ══════════ -->
+<canvas class="neural-layer" id="neuralLayer" aria-hidden="true"></canvas>
+
+<!-- ══════════ 全局质感层 ══════════ -->
+<div class="fx fx--scratch"></div>
+<div class="fx fx--stain"></div>
+<div class="fx fx--scan"></div>
+<div class="fx fx--noise"></div>
+<div class="fx fx--vignette"></div>
+<div class="glitch" id="glitch"></div>
+
+<!-- ══════════ HUD ══════════ -->
+<div class="rule rule--t"></div>
+<div class="rule rule--b"></div>
+
+<div class="hud hud--tl">
+  <span class="dotlive"></span>ZHANG YUYAN<br>
+  <b>PORTFOLIO / 2026</b>
+</div>
+
+<div class="hud hud--tr">
+  <b>BCI ROOKIE</b><br>
+  <span id="hudPid">SEC.01 — COVER</span>
+</div>
+
+<div class="hud hud--bl">
+  <span id="hudClock">--:--:--</span> CST<br>
+  SHENZHEN, CHINA
+</div>
+
+<div class="hud hud--br">
+  SCROLL / ↑ ↓ / CLICK<br>
+  <b>NAVIGATE</b>
+</div>
+
+<!-- ══════════ 分页器 ══════════ -->
+<nav class="pager" id="pager" aria-label="页面导航">
+  <button data-go="0" class="is-on"><span class="lbl">Cover</span><span class="bar"></span></button>
+  <button data-go="1"><span class="lbl">About</span><span class="bar"></span></button>
+  <button data-go="2"><span class="lbl">Contact</span><span class="bar"></span></button>
+  <button data-go="3"><span class="lbl">Feedback</span><span class="bar"></span></button>
+</nav>
+
+<!-- ══════════ 欢迎语浮层（首次点击封面任意处时打字机弹出） ══════════ -->
+<div class="greet" id="greet" aria-live="polite">
+  <div>
+    <span class="greet__tag" id="greetTag">SYS // GREETING</span>
+    <p class="greet__text">
+      <svg class="greet__bot" viewBox="0 0 24 24" aria-hidden="true">
+        <line class="stroke" x1="12" y1="3.6" x2="12" y2="6.2"/>
+        <circle class="antenna" cx="12" cy="2.4" r="1.5"/>
+        <rect class="stroke" x="4" y="6.2" width="16" height="12.4" rx="3.4"/>
+        <circle class="eye" cx="9.2" cy="12" r="1.6"/>
+        <circle class="eye" cx="14.8" cy="12" r="1.6"/>
+        <line class="stroke" x1="9.4" y1="15.4" x2="14.6" y2="15.4"/>
+      </svg><span id="greetTxt"></span><i class="greet__caret" aria-hidden="true"></i>
+    </p>
+  </div>
+</div>
+
+<!-- ══════════ STAGE ══════════ -->
+<main class="stage" id="stage">
+
+  <!-- ─────────── 01 COVER ─────────── -->
+  <section class="page page--cover is-active" data-pid="SEC.01 — COVER">
+
+    <!-- 底层 ZHANG Yuyan 文字暗纹 -->
+    <div class="wm" aria-hidden="true">
+      <span>ZHANG Yuyan ZHANG Yuyan ZHANG Yuyan</span>
+      <span>ZHANG Yuyan ZHANG Yuyan ZHANG Yuyan</span>
+      <span>ZHANG Yuyan ZHANG Yuyan ZHANG Yuyan</span>
+      <span>ZHANG Yuyan ZHANG Yuyan ZHANG Yuyan</span>
+      <span>ZHANG Yuyan ZHANG Yuyan ZHANG Yuyan</span>
+      <span>ZHANG Yuyan ZHANG Yuyan ZHANG Yuyan</span>
+    </div>
+
+    <div class="cover-inner">
+
+      <!-- ▸ 机器人虚拟形象（3D）
+           assets/fz.glb 由 three.js 实时渲染，下方 rs-slot 是载入中的占位剪影，
+           模型载入成功后会被 .has-model 自动隐藏。
+           换模型：替换 assets/fz.glb 即可；动画名取自 glb 内的 clip 名。 -->
+      <div class="robot-stage">
+        <div class="rs-halo"></div>
+        <div class="rs-ring rs-ring--1"></div>
+        <div class="rs-ring rs-ring--2"></div>
+
+        <canvas id="robotCanvas" class="rs-canvas"></canvas>
+
+        <div class="rs-slot" id="rsSlot">
+          <svg viewBox="0 0 220 280" fill="none" stroke="currentColor"
+               stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <!-- 天线 -->
+            <line x1="110" y1="52" x2="110" y2="32"/>
+            <circle cx="110" cy="26" r="4.5"/>
+            <!-- 头部 -->
+            <rect x="64" y="52" width="92" height="76" rx="12"/>
+            <!-- 面罩 + 双目 -->
+            <rect x="76" y="76" width="68" height="28" rx="9"/>
+            <rect x="86" y="84" width="18" height="12" rx="4" fill="currentColor" stroke="none" opacity=".55"/>
+            <rect x="116" y="84" width="18" height="12" rx="4" fill="currentColor" stroke="none" opacity=".55"/>
+            <!-- 口部栅格 -->
+            <line x1="88" y1="114" x2="88" y2="122"/>
+            <line x1="98" y1="114" x2="98" y2="122"/>
+            <line x1="108" y1="114" x2="108" y2="122"/>
+            <line x1="118" y1="114" x2="118" y2="122"/>
+            <line x1="128" y1="114" x2="128" y2="122"/>
+            <!-- 颈部 -->
+            <rect x="98" y="128" width="24" height="16" rx="3"/>
+            <line x1="100" y1="136" x2="120" y2="136"/>
+            <!-- 肩 / 胸 -->
+            <path d="M46 240v-44c0-21 17-38 38-38h52c21 0 38 17 38 38v44"/>
+            <rect x="30" y="200" width="20" height="40" rx="9"/>
+            <rect x="170" y="200" width="20" height="40" rx="9"/>
+            <!-- 胸口核心 -->
+            <circle cx="110" cy="196" r="17"/>
+            <circle cx="110" cy="196" r="5.5" fill="currentColor" stroke="none" opacity=".6"/>
+            <line x1="110" y1="168" x2="110" y2="176"/>
+          </svg>
+          <div class="rs-hint">
+            Robot Model
+            <em id="rsHint">正在载入 3D 模型…</em>
+          </div>
+        </div>
+
+        <span class="rs-bracket tl"></span>
+        <span class="rs-bracket tr"></span>
+        <span class="rs-bracket bl"></span>
+        <span class="rs-bracket br"></span>
+      </div>
+
+    </div>
+
+    <div class="scrollhint">
+      <span class="lbl">上滑查看关于我</span>
+      <span class="track"></span>
+    </div>
+  </section>
+
+  <!-- ─────────── 02 ABOUT ─────────── -->
+  <section class="page page--about" data-pid="SEC.02 — ABOUT">
+    <div class="page__inner">
+      <div class="wrap">
+
+        <header class="phead reveal">
+          <div class="phead__idx">02 / About</div>
+          <h2 class="phead__title chrome">ABOUT ME</h2>
+          <p class="phead__zh">关于我</p>
+          <p class="phead__lead">
+            这个人很懒，什么也没留下
+          </p>
+        </header>
+
+        <div class="grid2">
+
+          <!-- 左列 -->
+          <div class="col">
+
+            <section class="block reveal">
+              <h3 class="block__t"><i>01</i>基本信息<em>Placeholder</em></h3>
+              <dl class="kv">
+                <div><dt>姓名</dt><dd>张喻嫣 · ZHANG Yuyan</dd></div>
+                <div><dt>学校</dt><dd class="dd-school"><span>天津大学 — 香港理工大学</span><b>深圳未来技术学院</b></dd></div>
+                <div><dt>专业</dt><dd>智能医学工程<i style="font-style:normal;color:var(--ink-4)">（脑机接口方向）</i></dd></div>
+                <div><dt>年级</dt><dd>2026 级 · 本科在读</dd></div>
+                <div><dt>坐标</dt><dd>中国 · 深圳</dd></div>
+              </dl>
+            </section>
+
+            <section class="block reveal">
+              <h3 class="block__t"><i>02</i>研究方向<em>Focus</em></h3>
+              <div class="dirs">
+                <div class="dir">
+                  <h4>脑机接口<span>BCI</span></h4>
+                  <p>神经信号采集与解码、运动想象范式、侵入式与非侵入式接口的工程实现。</p>
+                </div>
+                <div class="dir">
+                  <h4>神经工程<span>Neuro-Eng</span></h4>
+                  <p>神经调控、脑机融合、康复工程与神经假体相关的系统设计。</p>
+                </div>
+                <div class="dir">
+                  <h4>医学人工智能<span>Med-AI</span></h4>
+                  <p>医学影像分析、生理信号建模、临床辅助决策与多模态数据融合。</p>
+                </div>
+              </div>
+            </section>
+
+            <section class="block reveal">
+              <h3 class="block__t"><i>03</i>兴趣爱好<em>Beyond</em></h3>
+              <div class="hobby-grid">
+                <div class="hcard" data-share="music">
+                  <div class="hcard__inner">
+                    <div class="hcard__face hcard__face--front">
+                      <span class="hcard__emoji">🎵</span>
+                    </div>
+                    <div class="hcard__face hcard__face--back">
+                      <span class="hcard__back-name">Music</span>
+                      <p class="hcard__desc">耳机是固定穿搭，流行摇滚电子啥都听。</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="hcard">
+                  <div class="hcard__inner">
+                    <div class="hcard__face hcard__face--front">
+                      <span class="hcard__emoji">🎾</span>
+                    </div>
+                    <div class="hcard__face hcard__face--back">
+                      <span class="hcard__back-name">Tennis</span>
+                      <p class="hcard__desc">打得不算好但很上头，周末约球是最快乐的事。</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="hcard" data-share="film">
+                  <div class="hcard__inner">
+                    <div class="hcard__face hcard__face--front">
+                      <span class="hcard__emoji">🎬</span>
+                    </div>
+                    <div class="hcard__face hcard__face--back">
+                      <span class="hcard__back-name">Film &amp; TV</span>
+                      <p class="hcard__desc">爆米花文艺科幻都爱看，电视剧音乐剧也爱看，好片子的安利来者不拒。</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+          </div>
+
+          <!-- 右列 -->
+          <div class="col">
+
+            <section class="block reveal">
+              <h3 class="block__t"><i>04</i>经历时间线<em>Timeline</em></h3>
+              <div class="tl">
+                <div class="tl__i on">
+                  <div class="tl__y">2026 — NOW</div>
+                  <div class="tl__t">入学天津大学 — 香港理工大学深圳未来技术学院</div>
+                  <div class="tl__d">智能医学工程（脑机接口方向）· 占位描述</div>
+                </div>
+                <div class="tl__i">
+                  <div class="tl__y">2025</div>
+                  <div class="tl__t">（占位）高中毕业 / 升学准备</div>
+                  <div class="tl__d">此处替换为你的实际经历</div>
+                </div>
+                <div class="tl__i">
+                  <div class="tl__y">待补充</div>
+                  <div class="tl__t">（占位）科研项目 / 学科竞赛 / 暑校</div>
+                  <div class="tl__d">此处替换为你的实际经历</div>
+                </div>
+              </div>
+            </section>
+
+            <section class="block reveal">
+              <h3 class="block__t"><i>05</i>正在学习<em>Learning</em></h3>
+              <div class="tags">
+                <span class="tag tag--core">Python</span>
+                <span class="tag tag--core">PyTorch</span>
+                <span class="tag">MATLAB</span>
+                <span class="tag">C / C++</span>
+                <span class="tag">数字信号处理</span>
+                <span class="tag">机器学习</span>
+                <span class="tag">生理信号分析</span>
+                <span class="tag">神经科学基础</span>
+                <span class="tag">英文文献阅读</span>
+                <span class="tag">排版与视觉</span>
+                <span class="tag">Figma</span>
+                <span class="tag">LaTeX</span>
+              </div>
+            </section>
+
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── 03 ASK ANYTHING ─────────── -->
+  <section class="page page--contact" data-pid="SEC.03 — ASK">
+    <div class="page__inner">
+      <div class="wrap">
+
+        <header class="phead reveal">
+          <div class="phead__idx">03 / Ask</div>
+          <h2 class="phead__title chrome">ASK ANYTHING</h2>
+          <p class="phead__zh">询问我</p>
+          <p class="phead__lead">
+            想问什么就问吧
+          </p>
+        </header>
+
+        <!-- 询问输入框：灵感来自 VanishingInput —— 输入停顿后文字逐帧上浮消散 -->
+        <div class="askbox reveal">
+          <div class="askbox__field is-idle" id="askField">
+            <span class="askbox__ph" id="askPh"></span>
+            <input class="askbox__input" id="askInput" type="text"
+                   autocomplete="off" spellcheck="false" maxlength="60"
+                   aria-label="向我提问">
+            <span class="askbox__hint">↵ ENTER</span>
+          </div>
+          <p class="askbox__log" id="askLog">SIGNAL STANDBY — 输入问题，停顿片刻看它消散</p>
+
+          <!-- 回答框：命中关键词自动输出答案，打字机效果 -->
+          <div class="askbox__answer" id="askAns" hidden>
+            <div class="askbox__answer-head">
+              <span class="askbox__answer-tag" id="askAnsTag">RESPONSE // AUTO</span>
+            </div>
+            <p class="askbox__answer-text" id="askAnsText"></p>
+          </div>
+        </div>
+
+        <div class="contact-list">
+          <!-- 占位链接：把 href 换成你的真实地址 -->
+          <a class="ccard reveal" href="#" target="_blank" rel="noopener">
+            <span class="ccard__k">01</span>
+            <span class="ccard__main">
+              <b>GitHub</b>
+              <em>github.com/your-handle &nbsp;←&nbsp; 待替换为真实主页</em>
+            </span>
+            <span class="ccard__arrow">↗</span>
+          </a>
+
+          <a class="ccard reveal" href="mailto:your@mail.com">
+            <span class="ccard__k">02</span>
+            <span class="ccard__main">
+              <b>Email</b>
+              <em>your@mail.com &nbsp;←&nbsp; 待替换为真实邮箱</em>
+            </span>
+            <span class="ccard__arrow">↗</span>
+          </a>
+        </div>
+
+        <footer class="cfoot reveal">
+          <span>ZHANG Yuyan · Shenzhen 2026</span>
+          <span>Portfolio v3.0 — Bronze Unit / Wasteland</span>
+        </footer>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── 04 FEEDBACK ─────────── -->
+  <section class="page page--feedback" data-pid="SEC.04 — FEEDBACK">
+    <div class="page__inner">
+      <div class="wrap">
+
+        <header class="phead reveal">
+          <div class="phead__idx">04 / Feedback</div>
+          <h2 class="phead__title chrome">FEEDBACK</h2>
+          <p class="phead__zh">反馈与建议</p>
+          <p class="phead__lead">
+            这个主页哪里看着别扭、哪里说得不清楚、哪里你觉得该改 —— 直接写下来。
+            你的反馈只有站长本人能看到，其他访客看不到任何人写的内容。
+          </p>
+        </header>
+
+        <form class="fb reveal" id="fbForm" autocomplete="off" novalidate>
+
+          <!-- 姓名 -->
+          <div class="fb__row" id="fbRowName">
+            <div class="fb__lab">
+              <span>01 / Name</span>
+              <i>姓名（真名、昵称、代号都行，想填什么都可以）</i>
+            </div>
+            <input class="fb__inp" id="fbName" type="text" maxlength="40"
+                   placeholder="怎么称呼你？" aria-label="姓名">
+          </div>
+
+          <!-- 职业（单选，选填）-->
+          <div class="fb__row" id="fbRowPro">
+            <div class="fb__lab">
+              <span>02 / Profession</span>
+              <i>你现在是哪一种？</i>
+            </div>
+            <div class="fb__opts" id="fbProfession" role="group" aria-label="职业">
+              <button class="fb__opt" type="button" data-v="学生">学生</button>
+              <button class="fb__opt" type="button" data-v="上班">上班</button>
+              <button class="fb__opt" type="button" data-v="退休">退休</button>
+            </div>
+          </div>
+
+          <!-- 设备（单选，选填）-->
+          <div class="fb__row" id="fbRowDev">
+            <div class="fb__lab">
+              <span>03 / Device</span>
+              <i>你用什么看的？</i>
+            </div>
+            <div class="fb__opts" id="fbDevice" role="group" aria-label="设备">
+              <button class="fb__opt" type="button" data-v="手机">手机</button>
+              <button class="fb__opt" type="button" data-v="平板">平板</button>
+              <button class="fb__opt" type="button" data-v="电脑">电脑</button>
+            </div>
+          </div>
+
+          <!-- 评分 -->
+          <div class="fb__row" id="fbRowRate">
+            <div class="fb__lab">
+              <span>04 / Score</span>
+              <i>给这个主页打个分</i>
+            </div>
+            <div class="fb__rate" id="fbStars">
+              <button class="fb__star" type="button" data-v="1" aria-label="1 分">★</button>
+              <button class="fb__star" type="button" data-v="2" aria-label="2 分">★</button>
+              <button class="fb__star" type="button" data-v="3" aria-label="3 分">★</button>
+              <button class="fb__star" type="button" data-v="4" aria-label="4 分">★</button>
+              <button class="fb__star" type="button" data-v="5" aria-label="5 分">★</button>
+              <span class="fb__score" id="fbScoreTxt">未评分</span>
+            </div>
+          </div>
+
+          <!-- 修改意见 -->
+          <div class="fb__row" id="fbRowTxt">
+            <div class="fb__lab">
+              <span>05 / Suggestion</span>
+              <i>修改意见</i>
+            </div>
+            <textarea class="fb__txt" id="fbTxt" maxlength="1000"
+                      placeholder="哪块内容看不懂、哪个地方不好看、想让我加什么……都可以说"
+                      aria-label="修改意见"></textarea>
+          </div>
+
+          <button class="fb__btn" type="submit" id="fbSend">Submit · 提交反馈</button>
+          <p class="fb__log" id="fbLog">Signal Standby — 填好后点提交</p>
+        </form>
+
+        <p class="fb__note reveal">
+          <b>说明：</b>提交的内容会直接存进云端，只有站长用口令才能读出来。
+          可以写好几条，想到什么随时回来补，不限次数；
+          但任何人<b>看不了、改不了、删不了</b>别人的反馈 —— 这条限制是在数据库层面强制的，不是页面上藏起来而已。
+        </p>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ══════════ 移动版：返回桌面版 ══════════ -->
+<div class="mfoot"><a href="index.html?desktop=1">← 切换桌面版</a></div>
+
+<!-- ══════════ 站长后台（隐藏入口：网址后加 ?admin=1） ══════════ -->
+<div class="adm" id="adm" role="dialog" aria-modal="true" aria-label="站长后台">
+  <div class="adm__box">
+    <div class="adm__head">
+      <span class="adm__ttl">Owner Console // 站长后台</span>
+      <button class="adm__close" type="button" id="admClose">Close ✕</button>
+    </div>
+
+    <div class="adm__gate" id="admGate">
+      <input id="admPass" type="password" placeholder="管理员口令" autocomplete="off">
+      <button type="button" id="admGo">Unlock</button>
+    </div>
+    <p class="adm__msg" id="admMsg"></p>
+
+    <div id="admBody" hidden>
+      <div class="adm__stat">
+        <div><span>Total</span><b id="admTotal">0</b></div>
+        <div><span>Average</span><b id="admAvg">—</b></div>
+        <div><span>Last 7 Days</span><b id="admWeek">0</b></div>
+      </div>
+      <div class="adm__list" id="admList"></div>
+      <div class="adm__sec">
+        <span class="adm__ttl">Shares // 收到的安利</span>
+        <span class="adm__num" id="admRecoNum">0</span>
+      </div>
+      <div class="adm__list" id="admRecos"></div>
+
+      <div class="adm__foot">
+        <span id="admTip">口令不会保存在浏览器里 · 关掉页面需要重新输入</span>
+        <button class="adm__close" type="button" id="admRefresh">Refresh ↻</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ 分享弹窗（双击音乐 / 影视卡片唤出） ══════════ -->
+<div class="share" id="share" role="dialog" aria-modal="true" aria-label="分享">
+  <div class="share__box">
+    <div class="share__head">
+      <span class="share__ttl" id="shareTtl">Share // 分享</span>
+      <button class="share__close" type="button" id="shareClose">Close ✕</button>
+    </div>
+
+    <p class="share__tip" id="shareTip"></p>
+
+    <textarea class="share__txt" id="shareTxt" maxlength="500"
+              aria-label="分享内容"></textarea>
+
+    <div class="share__acts">
+      <button class="share__cancel" type="button" id="shareCancel">Cancel · 取消</button>
+      <button class="share__send" type="button" id="shareSend">Send · 送出分享</button>
+    </div>
+    <p class="share__log" id="shareLog"></p>
+    <p class="share__priv">写下的内容会直接进云端，只有站长用口令才读得出来 —— 其他人看不了、改不了、删不了。</p>
+  </div>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  var pages   = Array.prototype.slice.call(document.querySelectorAll('.page'));
+  var dots    = Array.prototype.slice.call(document.querySelectorAll('.pager button'));
+  var glitch  = document.getElementById('glitch');
+  var hudPid  = document.getElementById('hudPid');
+  var stage   = document.getElementById('stage');
+
+  var cur = 0;
+  var busy = false;
+  var wheelGuard = 0;
+
+  /* ---------- 工具 ---------- */
+  function innerOf(i){
+    return pages[i] ? pages[i].querySelector('.page__inner') : null;
+  }
+  function scrollHost(){
+    return pages[cur] ? pages[cur].querySelector('.page__inner') : null;
+  }
+  /* dir: 1 向下 / -1 向上  —— 返回 true 表示已到边界，可以翻页 */
+  function atEdge(dir){
+    var h = scrollHost();
+    if (!h) return true;
+    if (h.scrollHeight <= h.clientHeight + 4) return true;
+    if (dir > 0) return h.scrollTop + h.clientHeight >= h.scrollHeight - 4;
+    return h.scrollTop <= 4;
+  }
+  function flash(){
+    glitch.classList.remove('on');
+    void glitch.offsetWidth;
+    glitch.classList.add('on');
+    window.setTimeout(function(){ glitch.classList.remove('on'); }, 500);
+  }
+  function updateDots(){
+    dots.forEach(function(d, i){ d.classList.toggle('is-on', i === cur); });
+    if (hudPid && pages[cur]) {
+      hudPid.textContent = pages[cur].getAttribute('data-pid') || '';
+    }
+    /* 广播当前页序号，供神经背景等模块判断该不该显示 */
+    if (window.CustomEvent) {
+      window.dispatchEvent(new CustomEvent('page:change', { detail: { index: cur } }));
+    }
+  }
+
+  /* ---------- 翻页 ---------- */
+  function go(next){
+    if (next < 0 || next >= pages.length || busy || next === cur) return;
+    busy = true;
+    flash();
+
+    var old = pages[cur];
+    var oldInner = old.querySelector('.page__inner');
+
+    old.classList.toggle('is-prev', next > cur);
+    old.classList.remove('is-active');
+
+    var nw = pages[next];
+    nw.classList.remove('is-prev');
+    nw.classList.add('is-active');
+
+    var ni = innerOf(next);
+    if (ni) ni.scrollTop = 0;
+
+    cur = next;
+    updateDots();
+
+    /* 气泡属于封面交互：翻页时立即退场，否则它会悬浮在内页正中压住卡片
+       （它是 position:fixed 的居中浮层，不跟着 .page 一起淡出）*/
+    greetDismiss();
+
+    /* 每次回到封面，随机播一段模型动画（首次载入由自动首句触发 Wave）*/
+    if (next === 0 && window.__robot && window.__robot.random) {
+      window.setTimeout(function(){ window.__robot.random(); }, 460);
+    }
+
+    /* 等旧页淡出结束再复位滚动，避免看见内容跳动 */
+    window.setTimeout(function(){
+      if (oldInner) oldInner.scrollTop = 0;
+      busy = false;
+    }, 1060);
+  }
+
+  /* ---------- 滚轮 ---------- */
+  window.addEventListener('wheel', function(e){
+    var dir = e.deltaY > 0 ? 1 : (e.deltaY < 0 ? -1 : 0);
+    if (!dir) return;
+    if (busy) return;
+    if (!atEdge(dir)) return;                       // 内页还能滚 → 放行原生滚动
+    if (Math.abs(e.deltaY) < 6) return;             // 过滤触控板微抖
+    var now = Date.now();
+    if (now - wheelGuard < 420) return;
+    wheelGuard = now;
+    go(cur + dir);
+  }, { passive: true });
+
+  /* ---------- 触摸（移动版重写）----------
+     桌面版这套判定在手机上有两个坑：
+       ① 只要起手落在 .robot-stage 里就算「转模型」，可光晕层是 canvas 的两倍大、
+          铺了大半个封面，手指在封面上划半天没反应 —— 这就是首页滑不动的主因；
+       ② 要等抬手（touchend）才翻页，手感偏钝。
+     移动版改成：
+       - 只有起点落在 canvas 本体才归「拖模型」，光晕 / 圆环 / 四角括号一律不吃手势；
+       - 在 touchmove 里判定，滑过阈值立刻翻页，不等抬手；
+       - 起手瞬间记下当前页能不能往上/往下翻，避免「内容滚到底后继续划」误翻；
+       - 横向位移占主导时不翻页（留给模型的水平环绕视角）。 */
+  var SWIPE_MIN = 46;                 /* 触发阈值 px */
+  var tsX = 0, tsY = 0;
+  var tsOnCanvas = false, tsCanDown = false, tsCanUp = false, tsFired = false;
+
+  stage.addEventListener('touchstart', function(e){
+    var t = e.touches[0];
+    tsX = t.clientX; tsY = t.clientY;
+    tsFired = false;
+    tsOnCanvas = !!(e.target && e.target.closest && e.target.closest('.rs-canvas'));
+    tsCanDown  = cur < pages.length - 1 && atEdge(1);
+    tsCanUp    = cur > 0 && atEdge(-1);
+  }, { passive: true });
+
+  stage.addEventListener('touchmove', function(e){
+    if (tsFired || tsOnCanvas || busy) return;
+    var t  = e.touches[0];
+    var dx = t.clientX - tsX;
+    var dy = t.clientY - tsY;
+    if (Math.abs(dy) < SWIPE_MIN) return;
+    if (Math.abs(dx) > Math.abs(dy) * 0.9) return;        /* 偏横向 → 放过 */
+    var dir = dy < 0 ? 1 : -1;
+    if (dir > 0 ? !tsCanDown : !tsCanUp) return;          /* 这一页当前不该翻 → 交给原生滚动 */
+    tsFired = true;
+    go(cur + dir);
+  }, { passive: true });
+
+  /* ---------- 键盘 ---------- */
+  window.addEventListener('keydown', function(e){
+    var k = e.key;
+    /* 焦点在输入控件里时，按键归输入框所有 —— 空格/方向键用于打字和移动光标，
+       不参与翻页。少了这道判断，输入框里的空格会被翻页逻辑截走。 */
+    var tgt = e.target;
+    if (tgt && (tgt.tagName === 'INPUT' || tgt.tagName === 'TEXTAREA' ||
+                tgt.tagName === 'SELECT' || tgt.isContentEditable)) return;
+    var down = (k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Spacebar');
+    var up   = (k === 'ArrowUp'   || k === 'PageUp');
+    if (down || up) {
+      e.preventDefault();
+      var dir = down ? 1 : -1;
+      if (busy) return;
+      if (!atEdge(dir)) {
+        var h = scrollHost();
+        if (h) h.scrollBy({ top: dir * 180, behavior: 'smooth' });
+        return;
+      }
+      go(cur + dir);
+      return;
+    }
+    if (k === 'Home') { e.preventDefault(); go(0); }
+    if (k === 'End')  { e.preventDefault(); go(pages.length - 1); }
+  });
+
+  /* ---------- 机器人打字机 ----------
+     首次点击封面 → 欢迎语；后续每次点击 → 语料库随机抽一句（不与上一句重复）；
+     打完停留 4 秒淡出；播放中再点立即消失。 */
+  var greet     = document.getElementById('greet');
+  var greetTxt  = document.getElementById('greetTxt');
+  var greetTag  = document.getElementById('greetTag');
+  var GREET_FIRST = '你好！欢迎来到张喻嫣的个人主页！';
+  /* 每句语料绑定一个机器人动作：文字和动画同步触发，不再每次都 Wave */
+  var CORPUS = [
+    { text: '哔——检测到访客信号，本机器人已上线！',   anim: 'Wave' },
+    { text: '正在扫描你的脑电波……嗯，是友好的人类！', anim: 'Yes' },
+    { text: '别点了，那是另外的价钱',               anim: 'No' },
+    { text: '充电勿扰==',                          anim: 'Idle' },
+    { text: '叮——人类，我已经喜欢上你了:D',         anim: 'Jump' },
+    { text: 'Amaze Amaze Amaze！',                 anim: 'ThumbsUp' },
+    /* 出拳那句末尾的 :\ 是用户原样给的表情，改文案时直接改这行即可 */
+    { text: '警告：再乱点别怪我出拳了:\\',           anim: 'Punch' },
+    { text: '彩蛋！',                             anim: 'Dance' },
+    { text: '遛弯模式启动，绕一圈就回来，别走开～',  anim: 'Walking' },
+    { text: 'CPU 温度偏高，我跑两步散散热！',       anim: 'Running' },
+    /* 边走边跳 = 唱歌模式，每次从歌词库里随机抽一句 */
+    { lyrics: [
+        "Lately I've been I've been losing sleep~",
+        "Let's make tonight the weekend I don't wanna wai-ait~",
+        "It's too late to apologize~",
+        'High on life till the day we die~',
+        'Wala li longla~',
+        'Cause this is all we know~',
+        "I've become so numb I can't feel you there~"
+      ],                                          anim: 'WalkJump' }
+  ];
+  var lastIdx     = -1;             // 上一句语料下标，避免连续重复
+  var lastLyric   = -1;             // 上一句歌词下标，避免连续重复
+  var greetShown  = false;          // 本次会话是否已触发过
+  var greetTimer  = 0;
+  var greetType   = 0;
+  var greetClear  = 0;              // dismiss 后延迟清空文字的计时器
+
+  /* 首句每次进站都播（用户拍板）：不再用 localStorage 记「已播」，
+     只靠 greetShown 防止同一页内重复。 */
+  function greetDismiss(){
+    if (!greet.classList.contains('is-on')) return;
+    greet.classList.remove('is-on');
+    window.clearTimeout(greetTimer);
+    if (greetType) { window.clearInterval(greetType); greetType = 0; }
+    greetClear = window.setTimeout(function(){ greetTxt.textContent = ''; }, 650);
+  }
+  function greetShow(text, tag, anim){
+    /* 可重入：播放中被新触发（点机器人）时，先清掉旧的打字/停留/清空计时器，
+       否则 dismiss 遗留的 650ms 清空会把新打的字抹掉 */
+    window.clearTimeout(greetTimer);
+    window.clearTimeout(greetClear);
+    if (greetType) { window.clearInterval(greetType); greetType = 0; }
+    greetShown = true;
+    greetTag.textContent = tag;
+    greetTxt.textContent = '';
+    /* 英文歌词这类长句自动缩字号，避免 nowrap 撑出屏幕 */
+    greetTxt.parentNode.classList.toggle('is-long', text.length > 22);
+    greet.classList.add('is-on');
+    /* 动作联动：首句转身面向镜头 + 挥手；语料句只播各自绑定的动作 */
+    if (anim === 'first') {
+      if (window.__robot && window.__robot.greetToViewer) {
+        window.setTimeout(function(){ window.__robot.greetToViewer(); }, 180);
+      }
+    } else if (anim && window.__robot && window.__robot.play) {
+      window.setTimeout(function(){ window.__robot.play(anim); }, 220);
+    }
+
+    /* 打字速度固定：中文 90ms/字、英文歌词 45ms/字 */
+    var perChar = text.length > 22 ? 45 : 90;
+    var typeMs  = text.length * perChar;
+
+    /* 停留时长跟着动画走：动画播完 + 0.8 秒余韵，文字才开始淡出。
+       动画有 220ms 启动延迟、0.4s 淡入，这里一并算进去，
+       保证「动作收尾」和「文字消失」基本同步，不会出现字还在机器人早停了。 */
+    var stayMs = 4000;                    // 兜底：首句等拿不到动画时长的场合
+    if (anim && anim !== 'first' && window.__robot && window.__robot.clipDuration) {
+      var animMs = (window.__robot.clipDuration(anim) || 0) * 1000;
+      if (animMs > 0) stayMs = Math.max(800, animMs + 220 + 800 - typeMs);
+    }
+
+    var i = 0;
+    greetType = window.setInterval(function(){
+      greetTxt.textContent = text.slice(0, ++i);
+      if (i >= text.length) {
+        window.clearInterval(greetType); greetType = 0;
+        greetTimer = window.setTimeout(greetDismiss, stayMs);
+      }
+    }, perChar);
+  }
+  function greetWasPlayed(){
+    try { return !!localStorage.getItem('zy-greeted-v4'); } catch(e){ return false; }
+  }
+  function pickCorpus(){
+    var i;
+    do {
+      i = Math.floor(Math.random() * CORPUS.length);
+    } while (CORPUS.length > 1 && i === lastIdx);   // 不与上一句重复
+    lastIdx = i;
+    var c   = CORPUS[i];
+    var tag = 'SIGNAL // ' + ('0' + (i + 1)).slice(-2);   // 01 ~ 11
+    /* 歌词库条目：每次随机抽一句，同样不与上一句重复 */
+    if (c.lyrics) {
+      var j;
+      do {
+        j = Math.floor(Math.random() * c.lyrics.length);
+      } while (c.lyrics.length > 1 && j === lastLyric);
+      lastLyric = j;
+      return { text: c.lyrics[j], tag: tag, anim: c.anim };
+    }
+    return { text: c.text, tag: tag, anim: c.anim };
+  }
+
+  /* ---------- 机器人点击桥接 ----------
+     点机器人本体 → 播对应动画 + 同步弹出匹配文案（和点空白处同一套语料）。
+     机器人自动轮询的动画不经过这里，永远不会弹字。 */
+  window.__corpusTrigger = function(animName){
+    if (!greetShown) {
+      greetShow(GREET_FIRST, 'SYS // GREETING', 'first');   // 本页还没播首句 → 先播首句
+      return;
+    }
+    /* 找语料库里绑这个动画的条目；找不到就只播动画不弹字（兜底） */
+    var idx = -1;
+    for (var k = 0; k < CORPUS.length; k++) {
+      if (CORPUS[k].anim === animName) { idx = k; break; }
+    }
+    if (idx === -1) {
+      if (window.__robot && window.__robot.play) window.__robot.play(animName);
+      return;
+    }
+    lastIdx = idx;                            // 与点空白共用「不连续重复」记忆
+    var c  = CORPUS[idx];
+    var tg = 'SIGNAL // ' + ('0' + (idx + 1)).slice(-2);
+    if (c.lyrics) {
+      var j;
+      do {
+        j = Math.floor(Math.random() * c.lyrics.length);
+      } while (c.lyrics.length > 1 && j === lastLyric);
+      lastLyric = j;
+      greetShow(c.lyrics[j], tg, c.anim);
+    } else {
+      greetShow(c.text, tg, c.anim);
+    }
+  };
+  /* 给机器人点击池用：语料系统上一句播的是哪个动画（避免跨系统连续重复） */
+  window.__corpusLastAnim = function(){
+    return (lastIdx >= 0 && CORPUS[lastIdx]) ? CORPUS[lastIdx].anim : '';
+  };
+
+  /* ---------- 封面任意处点击触发 ----------
+     首句播过之后，点击封面 → 从语料库随机抽一句；播放中再点 → 立即消失。
+     排除按钮/链接和机器人本体（机器人有自己的点击反应体系），
+     且位移超过 8px 视为拖拽机器人（OrbitControls），不触发。 */
+  var cover = document.querySelector('.page--cover');
+  var downX = 0, downY = 0;
+  cover.addEventListener('pointerdown', function(e){
+    downX = e.clientX; downY = e.clientY;
+  });
+  cover.addEventListener('click', function(e){
+    /* 整个 .robot-stage（含光晕层）都归机器人点击处理器管：
+       它现在也会弹匹配文案，不存在死区；不排除的话点光晕区会两边同时触发，
+       一次点击播两个动画、弹两段文字。 */
+    if (e.target.closest('button, a, .pager, input, .robot-stage')) return;
+    if (Math.hypot(e.clientX - downX, e.clientY - downY) > 8) return;
+    if (!greetShown) {
+      greetShow(GREET_FIRST, 'SYS // GREETING', 'first');   // 本页还没播首句 → 首句优先
+    } else if (greet.classList.contains('is-on')) {
+      greetDismiss();                               // 播放中再点 → 消失
+    } else {
+      var c = pickCorpus();                         // 后续：语料库随机抽一句 + 对应动作
+      greetShow(c.text, c.tag, c.anim);
+    }
+  });
+
+  /* ---------- 进入主页自动播首句 ----------
+     每次进站都播（不看 localStorage），刷新/重进都会再播。
+     若访客在延迟内就点了封面或机器人，那边会先播首句并置 greetShown，这里跳过不重复。 */
+  var AUTO_GREET_DELAY = 1200;   // 等机器人的入场动画（rsIn 1.5s）走到一半再开始
+  window.setTimeout(function(){
+    if (greetShown) return;
+    if (!cover.classList.contains('is-active')) return;   // 万一已经翻页就不打扰
+    greetShow(GREET_FIRST, 'SYS // GREETING', 'first');
+  }, AUTO_GREET_DELAY);
+
+  /* ---------- 分页器点击 ---------- */
+  dots.forEach(function(d){
+    d.addEventListener('click', function(){
+      var i = parseInt(d.getAttribute('data-go'), 10);
+      if (!isNaN(i)) go(i);
+    });
+  });
+
+  /* ---------- HUD 时钟 ---------- */
+  var clock = document.getElementById('hudClock');
+  function tick(){
+    if (!clock) return;
+    var d = new Date();
+    var p = function(n){ return n < 10 ? '0' + n : '' + n; };
+    clock.textContent = p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+  }
+  tick();
+  window.setInterval(tick, 1000);
+
+  /* ---------- 3D 模型兜底提示 ---------- */
+  (function(){
+    var rs = document.querySelector('.robot-stage');
+    if (!rs) return;
+    window.setTimeout(function(){
+      if (rs.classList.contains('has-model')) return;
+      var s = document.getElementById('rsSlot');
+      var h = document.getElementById('rsHint');
+      if (s) s.classList.add('is-error');
+      if (h) h.textContent = '模型载入超时 · 请用 http 方式打开（ES Module 不支持 file://）';
+    }, 12000);
+  })();
+
+  /* ---------- 初始化 ---------- */
+  updateDots();
+  if (pages[0]) pages[0].querySelectorAll('.reveal').forEach(function(el){ el.style.setProperty('--d', '0s'); });
+})();
+</script>
+
+<!-- ══════════ 彩带（彩蛋用；本地文件，不再走 CDN，万一缺失只是没彩带不影响其他功能）══════════ -->
+<script src="assets/vendor/canvas-confetti.min.js"></script>
+
+<!-- ══════════ 3D 机器人（本地 three.js，无外部 CDN 依赖）══════════ -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./assets/vendor/three.module.min.js",
+    "three/addons/": "./assets/vendor/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader }   from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+
+const stageEl  = document.querySelector('.robot-stage');
+const canvasEl = document.getElementById('robotCanvas');
+const slotEl   = document.getElementById('rsSlot');
+const hintEl   = document.getElementById('rsHint');
+const pageEl   = stageEl ? stageEl.closest('.page') : null;   // 封面页，用于暂停渲染
+
+function fail(msg){
+  if (slotEl) slotEl.classList.add('is-error');
+  if (hintEl) hintEl.textContent = msg || '模型载入失败';
+  console.warn('[robot] ' + msg);
+}
+
+if (stageEl && canvasEl) {
+  boot().catch(function(e){ fail(e && e.message ? e.message : String(e)); });
+}
+
+async function boot(){
+
+  const renderer = new THREE.WebGLRenderer({
+    canvas: canvasEl, antialias: true, alpha: true, powerPreference: 'high-performance'
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+  const scene  = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(32, 1, 0.1, 120);
+
+  /* 环境反射：金属材质必须有 envMap，否则 metalness 一高就会发黑 */
+  scene.environment = makeEnvMap(renderer);
+
+  /* ── 灯光：中性冷白主光 + 冷钢蓝轮廓光 + 沙尘暖补光 ──
+     强度整体压低，金属高光在动作幅度大时容易打爆成白块 */
+  scene.add(new THREE.HemisphereLight(0xb4c6ce, 0x0e1416, 0.70));
+
+  const key = new THREE.DirectionalLight(0xfff2d8, 3.10);   // 暖金主光，让铜色金属反光
+  key.position.set(2.4, 4.0, 2.8);
+  key.castShadow = true;
+  key.shadow.mapSize.set(1024, 1024);
+  key.shadow.camera.near = 0.5;
+  key.shadow.camera.far  = 24;
+  key.shadow.bias = -0.0018;
+  key.shadow.radius = 3;
+  scene.add(key);
+
+  const rim = new THREE.DirectionalLight(0xa8d8e8, 1.85);   // 冷青轮廓光，把机器人从暗底切出来
+  rim.position.set(-3.0, 1.8, -2.4);
+  scene.add(rim);
+
+  const fill = new THREE.PointLight(0xffd0a0, 6.0, 14, 2);   // 暖侧补光
+  fill.position.set(-1.6, 0.4, 2.6);
+  scene.add(fill);
+
+  const under = new THREE.PointLight(0x9a8065, 2.4, 12, 2);   // 底部暖反弹，勾出腿轮廓
+  under.position.set(0.8, -1.1, 1.5);
+  scene.add(under);
+
+  /* ── 拖拽旋转（缩放交回给翻页）──
+     不做常驻自转：机器人大部分时间是静止的，
+     只靠偶发的动画「活」一下，其余时间像一尊废土里的雕像。 */
+  const controls = new OrbitControls(camera, canvasEl);
+  controls.enableZoom = false;
+  controls.enablePan  = false;
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.07;
+  controls.rotateSpeed = 0.6;
+  controls.autoRotate = false;
+  controls.minPolarAngle = Math.PI * 0.16;
+  controls.maxPolarAngle = Math.PI * 0.62;
+  controls.target.set(0, 0, 0);
+
+  /* ── 载入模型 ── */
+  const gltf  = await new GLTFLoader()
+    .setMeshoptDecoder(MeshoptDecoder)
+    .loadAsync('assets/fz.glb');
+  const model = gltf.scene;
+  model.updateWorldMatrix(true, true);
+
+  /* ── 材质：古铜色 + 顶点级铁锈 ──
+     ⚠ 这 3 个材质实例被 19 个网格共用（Main×12 / Grey×6 / Black×1），
+     必须按 uuid 去重，否则同一个材质会被叠加修改十几次。 */
+  const BRONZE   = new THREE.Color(0xd9a860);   // 做旧金铜（提亮）
+  const BRONZE_D = new THREE.Color(0xb0884f);   // 同色系暗一档
+  const RUST     = new THREE.Color(0x8a4a28);   // 铁锈
+  const RUST_DK  = new THREE.Color(0x56331c);   // 锈坑
+  const DARKPART = new THREE.Color(0x33302b);   // 深色件，不上锈
+
+  const BASE_OF = { Main: BRONZE, Grey: BRONZE_D, Black: DARKPART };
+  const RUSTY   = { Main: true,   Grey: true,      Black: false };
+
+  const touched = new Set();
+  const baked   = new Set();
+
+  model.traverse(function(o){
+    if (!o.isMesh) return;
+    o.castShadow = true;
+    o.receiveShadow = true;
+
+    const mm = Array.isArray(o.material) ? o.material[0] : o.material;
+    const mName = (mm && mm.name) || 'Main';
+
+    /* 颜色全部由顶点色承载，材质自身必须是白，否则会被乘两遍 */
+    (Array.isArray(o.material) ? o.material : [o.material]).forEach(function(m){
+      if (!m || !m.isMeshStandardMaterial || touched.has(m.uuid)) return;
+      touched.add(m.uuid);
+      m.color.setRGB(1, 1, 1);
+      m.vertexColors = true;
+      m.roughness = Math.min(0.92, Math.max(0.36, m.roughness * 0.55 + 0.12));
+      m.metalness = Math.min(0.90, m.metalness * 0.55 + 0.50);
+      m.envMapIntensity = 0.72;   // 压低：动画时金属高光容易打爆成白块
+    });
+
+    /* 锈斑烘焙 —— 几何体可能被复用，按 uuid 去重 */
+    const g = o.geometry;
+    if (!g || baked.has(g.uuid)) return;
+    baked.add(g.uuid);
+
+    const pos = g.attributes.position;
+    if (!pos) return;
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    const y0 = bb.min.y;
+    const ySpan = Math.max(1e-4, bb.max.y - bb.min.y);
+
+    const base    = BASE_OF[mName] || BRONZE;
+    const useRust = RUSTY[mName] !== false;
+    const count   = pos.count;
+    const arr     = new Float32Array(count * 3);
+    const col     = new THREE.Color();
+
+    for (let i = 0; i < count; i++){
+      const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+      col.copy(base);
+
+      if (useRust){
+        let mask = fbm3(x * 1.15, y * 1.15, z * 1.15);
+        mask = (mask - 0.50) / 0.24;
+        mask = mask < 0 ? 0 : (mask > 1 ? 1 : mask);
+        mask = mask * mask * (3 - 2 * mask);              // smoothstep，收紧边缘
+        const low = Math.min(1, Math.max(0, (0.45 - (y - y0) / ySpan) * 1.5));
+        mask = Math.min(1, mask * 0.70 + low * 0.24);     // 越低越容易积水锈蚀
+        col.lerp(RUST, mask);
+        if (mask > 0.72) col.lerp(RUST_DK, (mask - 0.72) * 2.0);
+      }
+
+      /* THREE.Color 已在线性空间，顶点色要的正是线性值 */
+      arr[i * 3]     = col.r;
+      arr[i * 3 + 1] = col.g;
+      arr[i * 3 + 2] = col.b;
+    }
+    g.setAttribute('color', new THREE.BufferAttribute(arr, 3));
+  });
+
+  /* ── 归一化 + 居中 ──
+     ⚠ 4 个手部 SkinnedMesh 的几何体是 bind pose，Box3.setFromObject
+     会把整条骨骼链算进去，得出 60~75 × 125~147 的假包围盒（中心偏移到 x=±110、y=62）。
+     真实体型只有约 2.6 × 4.6 × 3.1。所以只用非蒙皮网格来算。 */
+  const bodyBox = new THREE.Box3();
+  model.traverse(function(o){
+    if (o.isSkinnedMesh) return;          // 蒙皮网格的 AABB 不可信，跳过
+    if (o.isMesh) bodyBox.expandByObject(o);
+  });
+  if (bodyBox.isEmpty()) bodyBox.setFromObject(model);
+
+  const bodySize   = bodyBox.getSize(new THREE.Vector3());
+  const bodyCenter = bodyBox.getCenter(new THREE.Vector3());
+
+  const TARGET_H = 2.0;                             // 归一化后的身高
+  const k = TARGET_H / (bodySize.y || 1);           // 缩放比
+
+  model.position.set(-bodyCenter.x, -bodyCenter.y, -bodyCenter.z);  // 几何中心移到原点
+  const root = new THREE.Group();
+  root.add(model);
+  root.scale.setScalar(k);
+  scene.add(root);
+
+  /* 接影地面 */
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(9, 9),
+    new THREE.ShadowMaterial({ opacity: 0.45, color: 0x05090b })
+  );
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -TARGET_H * 0.5 - 0.01;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  /* ══════════════════════════════════════════════════════════
+     机器人「活」起来的两个交互：
+     ① 点击反应 —— 见下方「点击反应」块
+     ② 面向访客 —— 打招呼时先把身体平滑转向镜头，再挥手
+     （曾尝试过「视线跟随鼠标」，已移除：fz.glb 的 Wave / Dance / ThumbsUp / Yes / No / Idle
+       等片段都没有 Neck 骨骼的动画轨道，mixer 不会覆写该骨骼，叠加的角度偏移会每帧累积，
+       脖子会一直转。要重做必须先解决「非每帧覆写骨骼」的偏移累积问题。）
+     ══════════════════════════════════════════════════════════ */
+
+  /* ── ② 面向访客 ──
+     访客可能把镜头拖到侧面，打招呼前先把身体转回朝向镜头。
+     做法：把 root 转到与相机方位角一致（不用动相机，不跟 OrbitControls 抢方向盘）。 */
+  let faceTween = null;   // { from, to, t }
+  function greetToViewer(){
+    if (!root) return;
+    const az = controls.getAzimuthalAngle();
+    const from = root.rotation.y;
+    /* 取最短路径差值，避免转大圈 */
+    let d = az - from;
+    d = Math.atan2(Math.sin(d), Math.cos(d));
+    faceTween = { from: from, to: from + d, t: 0 };
+    play('Wave');
+  }
+  function applyFaceTween(dt){
+    if (!faceTween) return;
+    faceTween.t = Math.min(1, faceTween.t + dt / 0.7);
+    const k = 1 - Math.pow(1 - faceTween.t, 3);          // easeOutCubic
+    root.rotation.y = faceTween.from + (faceTween.to - faceTween.from) * k;
+    if (faceTween.t >= 1) faceTween = null;
+  }
+
+  /* 相机取景。
+     ⚠ 不能用包围球半径：人形是「高瘦」的，包围球半径 1.33 而实际半高只有 1.0，
+     按球取景会在竖直方向白白浪费 33% 画面，机器人显得很小。
+     竖直方向只受半高约束，水平方向旋转时最宽是 sqrt(x²+z²)/2 —— 取两者较大值即可。
+     1.20 余量留给挥手/跳跃这类会把手臂抬过头顶的动作。 */
+  const halfH  = bodySize.y * k * 0.5;
+  const spinR  = Math.hypot(bodySize.x, bodySize.z) * k * 0.5;
+  const frameR = Math.max(halfH, spinR);
+  const camDist = frameR / Math.sin(THREE.MathUtils.degToRad(camera.fov * 0.5)) * 1.04;
+
+  /* 视线中心比几何中心略低：机器人在画面里往上提一点，
+     实测校准过 —— 否则会头顶空一大块、脚快贴到画布底边 */
+  camera.position.set(0, frameR * -0.04, camDist);
+  controls.target.set(0, frameR * -0.11, 0);
+  controls.update();
+
+  /* ── 动画 ──
+     机制：任何动作只完整播一遍（LoopOnce），播完定格 → 自动淡回常驻 Idle（无限循环）
+     → 冷却 14~26 秒再随机下一段。
+     ⚠ 两件事决定了这个结构：
+     ① fz.glb 的绑定姿势头是歪的，骨骼不能失去驱动，所以要么定格、要么 Idle 盖住；
+     ② Standing / Sitting 其实是「站起 / 坐下」的过渡动画（不是站立/坐姿），
+        拿 Standing 当回正姿势会反复出现「坐一半再弹起」的诡异画面 —— 回正必须用 Idle。 */
+  const mixer   = new THREE.AnimationMixer(model);
+  const actions = {};
+  /* 待机时头部固定正中（用户拍板）：Idle 片段自带头部旋转轨道（36 个关键帧），
+     常驻循环会让头一直动。把该轨道所有关键帧改写成首帧值（自然正中姿势）——
+     轨道本身保留，所以 Yes 点头 / No 摇头播完淡回 Idle 时，
+     头部会被这个固定轨道平滑拉回正中，不会卡在最后姿势。 */
+  const idleClip = gltf.animations.find(function(c){ return c.name === 'Idle'; });
+  if (idleClip) {
+    idleClip.tracks.forEach(function(t){
+      if (/Head\.quaternion$/.test(t.name)) {
+        const v = t.values;
+        for (let i = 4; i < v.length; i++) v[i] = v[i % 4];   // 全部关键帧 = 首帧
+      }
+    });
+  }
+  /* Standing / Death / Sitting 三个片段整体弃用（用户拍板）：
+     名字与实际内容不符（站起/坐下过渡、倒地），从体系里移除，不再建 action。 */
+  const REMOVED = ['Standing', 'Death', 'Sitting'];
+  gltf.animations.forEach(function(clip){
+    if (REMOVED.indexOf(clip.name) !== -1) return;
+    actions[clip.name] = mixer.clipAction(clip);
+  });
+
+  /* Dance 升格为彩蛋专属：既不进自动轮询池，也不进点击池，只有连点 3 次才会跳 */
+  const EASTER  = 'Dance';
+  /* 自动轮询池 = 除彩蛋外的全部动作（每个都只播一遍） */
+  const pool = Object.keys(actions).filter(function(n){ return n !== EASTER; });
+
+  const COOL_MIN = 14000, COOL_MAX = 26000;   // 冷却区间（毫秒）
+  let current   = null;
+  let coolTimer = 0;
+  let lastPick  = '';
+
+  function play(name){
+    if (!name || !actions[name]) return;
+    clearTimeout(coolTimer);                  // 取消待触发的冷却
+
+    /* 其余动作淡出，避免多段动作同时占权重把姿势拉变形。
+       ⚠ 不能只查 isRunning()：一次性动作播完定格（clampWhenFinished）后，
+       isRunning() 返回 false 但权重仍挂在 1，fadeOut 会漏掉它 ——
+       新动作就和上一个定格姿势 50/50 混合，表现为「动作变形 / 像别的动作」。
+       改按「实际权重 > 0」清理：定格残留同样会被优雅淡出。 */
+    Object.keys(actions).forEach(function(n){
+      if (n !== name && actions[n].getEffectiveWeight() > 0.001) actions[n].fadeOut(0.4);
+    });
+
+    const a = actions[name];
+    a.reset();
+    /* 所有动作只完整播一遍：不循环凑时长、不停在循环中间，
+       播完定格在最后一帧（盖住歪头绑定姿势），再由 finished 统一淡回常驻 Idle。 */
+    a.setLoop(THREE.LoopOnce, 1);
+    a.clampWhenFinished = true;
+    a.fadeIn(0.4).play();
+    current = name;
+  }
+  /* 某段动画实际会播多久（秒）—— 给打字机用：文字停留时长跟着动画走。
+     所有动作都只播一遍，就是片段本身的长度。 */
+  function clipDuration(name){
+    const a = actions[name];
+    return a ? (a.getClip().duration || 0) : 0;
+  }
+
+  /* 一段播完 → 进入冷却 → 到点再随机下一段（不再回落到常驻 Idle）*/
+  function scheduleCooldown(){
+    clearTimeout(coolTimer);
+    coolTimer = setTimeout(function(){
+      if (pageEl && !pageEl.classList.contains('is-active')) {
+        scheduleCooldown();          // 不在封面时继续等，别在后台空转
+        return;
+      }
+      runRandom();
+    }, COOL_MIN + Math.random() * (COOL_MAX - COOL_MIN));
+  }
+
+  function runRandom(){
+    if (!pool.length) return;
+    let cands = pool.filter(function(n){ return n !== lastPick; });
+    if (!cands.length) cands = pool;
+    lastPick = cands[Math.floor(Math.random() * cands.length)];
+    play(lastPick);
+  }
+
+  /* 常驻待机：Idle 无限循环。任何动作播完都淡回这里 ——
+     骨骼始终有驱动，歪头绑定姿势永远不会露出来。
+     reset + fadeIn 对「Idle 自己 LoopOnce 播完」也安全（同一动作重进循环，无跳变）。 */
+  function idleLoop(){
+    const a = actions.Idle;
+    if (!a) return;
+    Object.keys(actions).forEach(function(n){
+      if (n !== 'Idle' && actions[n].getEffectiveWeight() > 0.001) actions[n].fadeOut(0.4);
+    });
+    a.reset();
+    a.setLoop(THREE.LoopRepeat, Infinity);
+    a.clampWhenFinished = false;
+    a.fadeIn(0.5).play();
+    current = 'Idle';
+  }
+
+  /* 一段播完 → 淡回常驻 Idle → 排冷却 → 到点再随机下一段 */
+  mixer.addEventListener('finished', function(e){
+    if (!current || e.action !== actions[current]) return;
+    idleLoop();
+    scheduleCooldown();
+  });
+
+  window.__robot = {
+    play: play,
+    random: runRandom,
+    greetToViewer: greetToViewer,               // 打招呼：转向镜头 + 挥手
+    clipDuration: clipDuration,                 // 查动作实际时长 → 打字机据此定停留时间
+    state: function(){ return { current: current, pool: pool.slice() }; }
+  };
+
+  /* ── ② 点击反应 ──
+     点一下机器人：从下面 REACT 池里随机来一段（Dance 留给彩蛋；
+     Standing / Death / Sitting 已从体系整体移除）。
+     每个动作只完整播一遍，播完自动淡回常驻 Idle。
+     2.5 秒内连点 3 次 → 触发彩蛋：机器人跳 Dance + 左右两侧礼炮彩带。
+     用 pointerdown/up 位移 < 8px 区分「点击」和「拖拽转模型」。 */
+  const REACT = [
+    'Wave', 'Yes', 'No', 'ThumbsUp', 'Jump', 'Punch', // 短反应
+    'Idle', 'Walking', 'Running', 'WalkJump'          // 位移动作
+  ];
+
+  /* ── 🎉 彩带：左右两侧礼炮 ──
+     canvas-confetti（CDN）默认会自己建一个全屏 fixed canvas（z-index 100，pointer-events:none），
+     不会挡住交互；站点其余图层最高到 85，所以彩带在最上面。
+     配色取站点色板，不用默认的五彩。 */
+  const CONFETTI_COLORS = ['#c4cfd4', '#e6e9e7', '#b4623a', '#a8d8e8', '#8a4a28'];
+  const CONFETTI_BASE = {
+    particleCount: 120,     // 单侧粒子数
+    spread: 70,             // 扇形张角
+    startVelocity: 35,      // 初速度
+    scalar: 1,              // 纸片大小
+    ticks: 220,             // 存活帧数（默认 200，略放长一点）
+    colors: CONFETTI_COLORS,
+    disableForReducedMotion: true
+  };
+  function fireConfetti(){
+    const cf = window.confetti;
+    if (typeof cf !== 'function') return;      // CDN 没加载成功就静默跳过，不影响动画
+    /* 左下角朝右上斜射 / 右下角朝左上斜射 */
+    cf(Object.assign({}, CONFETTI_BASE, { origin: { x: 0.02, y: 0.92 }, angle: 62  }));
+    cf(Object.assign({}, CONFETTI_BASE, { origin: { x: 0.98, y: 0.92 }, angle: 118 }));
+  }
+
+  /* 连击判定：用「相邻两击的间隔」而不是「从第一击起算的总时长」。
+     ⚠ 一开始用的 2.5s 总窗口实测会漏判：每点一下都会播 1~3 秒的动画，
+        访客边看边点（间隔 1.4s 左右）时，第三击往往已经把第一击挤出窗口，
+        永远凑不满三次。改成间隔判定后，只要每一下都接得上就算连击。 */
+  const COMBO = 3;              // 连点几次触发彩蛋
+  const COMBO_GAP = 1800;       // 相邻两击的最大间隔（毫秒），超时从第一击重新数
+  /* 单击确认延迟：点下去先不播，等 TAP_DEBOUNCE 毫秒确认没有下一击才播反应。
+     ⚠ 没有这个延迟的话，连点三下会连着闪三段动画（前两下各一段 + 最后 Dance），
+        观感很乱。有了它，连击途中待播的反应会被逐个取消，最后只播一段 Dance。 */
+  const TAP_DEBOUNCE = 380;
+  let tapX = 0, tapY = 0, tapT = 0;
+  let pendingTimer = 0;
+  const taps = [];
+
+  function cancelPending(){
+    if (pendingTimer) { window.clearTimeout(pendingTimer); pendingTimer = 0; }
+  }
+  function playRandomReaction(){
+    /* 与语料系统共用「不连续重复」记忆：封面刚播过的动画，点机器人不会紧接着再来一遍 */
+    const lastAnim = window.__corpusLastAnim ? window.__corpusLastAnim() : lastPick;
+    const cands = REACT.filter(function(n){ return actions[n] && n !== lastAnim; });
+    if (!cands.length) return;
+    lastPick = cands[Math.floor(Math.random() * cands.length)];
+    /* 点机器人 = 动画 + 匹配文案一起弹（走封面语料系统）；
+       语料系统没加载好时退化为只播动画。 */
+    if (window.__corpusTrigger) window.__corpusTrigger(lastPick);
+    else play(lastPick);
+  }
+
+  stageEl.addEventListener('pointerdown', function(e){
+    tapX = e.clientX; tapY = e.clientY; tapT = Date.now();
+  });
+  stageEl.addEventListener('pointerup', function(e){
+    if (Math.hypot(e.clientX - tapX, e.clientY - tapY) > 8) return;   // 拖拽 ≠ 点击
+    if (Date.now() - tapT > 450) return;                              // 长按 ≠ 点击
+
+    const now = Date.now();
+    if (taps.length && now - taps[taps.length - 1] > COMBO_GAP) taps.length = 0;  // 断档 → 重新数
+    taps.push(now);
+    cancelPending();                                                  // 有新的点击 → 撤掉上一击待播的反应
+
+    if (taps.length >= COMBO){                                        // 🎉 彩蛋：只播这一段
+      taps.length = 0;
+      /* Dance + 「彩蛋！」文案（语料库里 Dance 的匹配句）；语料系统不在就只跳舞 */
+      if (window.__corpusTrigger) window.__corpusTrigger(EASTER);
+      else play(EASTER);
+      window.setTimeout(fireConfetti, 150);                           // 稍晚一点，和起跳动作同步
+      return;
+    }
+    pendingTimer = window.setTimeout(playRandomReaction, TAP_DEBOUNCE);
+  });
+
+  /* ── 尺寸 / 渲染循环 ── */
+  function resize(){
+    const w = stageEl.clientWidth, h = stageEl.clientHeight;
+    if (!w || !h) return;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stageEl);
+  window.addEventListener('resize', resize);
+  resize();
+  renderer.render(scene, camera);
+
+  const clock  = new THREE.Clock();
+  const pageEl = stageEl.closest('.page');
+
+  (function tick(){
+    requestAnimationFrame(tick);
+    const dt = clock.getDelta();
+    /* 不在封面时暂停渲染，省电 */
+    if (pageEl && !pageEl.classList.contains('is-active')) return;
+    applyFaceTween(dt);
+    mixer.update(dt);
+    controls.update();
+    renderer.render(scene, camera);
+  })();
+
+  stageEl.classList.add('has-model');
+  /* 初始化直接进 Idle 待机（立刻盖住歪头绑定姿势），不在这里挥手 ——
+     挥手由 1.2s 后的自动首句（greetToViewer）触发，只挥一次。 */
+  idleLoop();
+}
+
+/* ── 过程噪声：给铁锈斑用（模型无 UV，只能在三维空间取噪声）── */
+function hashLattice(i, j, k){
+  let n = (i * 374761393 + j * 668265263 + k * 1274126177) | 0;
+  n = ((n ^ (n >> 13)) * 1274126177) | 0;
+  n = n ^ (n >> 16);
+  return (n >>> 0) / 4294967295;
+}
+
+function vnoise3(x, y, z){
+  const xi = Math.floor(x), yi = Math.floor(y), zi = Math.floor(z);
+  const xf = x - xi, yf = y - yi, zf = z - zi;
+  const u = xf * xf * (3 - 2 * xf);
+  const v = yf * yf * (3 - 2 * yf);
+  const w = zf * zf * (3 - 2 * zf);
+  const L = function(a, b, t){ return a + (b - a) * t; };
+  return L(
+    L(L(hashLattice(xi,     yi,     zi),     hashLattice(xi + 1, yi,     zi),     u),
+      L(hashLattice(xi,     yi + 1, zi),     hashLattice(xi + 1, yi + 1, zi),     u), v),
+    L(L(hashLattice(xi,     yi,     zi + 1), hashLattice(xi + 1, yi,     zi + 1), u),
+      L(hashLattice(xi,     yi + 1, zi + 1), hashLattice(xi + 1, yi + 1, zi + 1), u), v),
+    w);
+}
+
+function fbm3(x, y, z){
+  return vnoise3(x, y, z) * 0.58
+       + vnoise3(x * 2.13 + 11.3, y * 2.13 +  7.1, z * 2.13 +  3.7) * 0.28
+       + vnoise3(x * 4.31 + 23.9, y * 4.31 +  5.3, z * 4.31 + 17.1) * 0.14;
+}
+
+/* 用 canvas 画一张环境贴图：
+   上层灰白阴天（给金属冷调反射）+ 侧面冷钢蓝高光 + 地面锈色反弹。
+   金属材质没有 envMap 会发黑，这张图同时负责把色调压进废土色系。 */
+function makeEnvMap(renderer){
+  const c = document.createElement('canvas');
+  c.width = 128; c.height = 64;
+  const g = c.getContext('2d');
+
+  const grad = g.createLinearGradient(0, 0, 0, 64);
+  grad.addColorStop(0.00, '#71838a');
+  grad.addColorStop(0.32, '#3f4c52');
+  grad.addColorStop(0.62, '#1d2429');
+  grad.addColorStop(1.00, '#070a0c');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 128, 64);
+
+  const cool = g.createRadialGradient(100, 18, 0, 100, 18, 34);
+  cool.addColorStop(0, 'rgba(210,224,234,.50)');
+  cool.addColorStop(1, 'rgba(210,224,234,0)');
+  g.fillStyle = cool;
+  g.fillRect(0, 0, 128, 64);
+
+  const rust = g.createRadialGradient(28, 44, 0, 28, 44, 38);
+  rust.addColorStop(0, 'rgba(168,108,58,.42)');
+  rust.addColorStop(1, 'rgba(168,108,58,0)');
+  g.fillStyle = rust;
+  g.fillRect(0, 0, 128, 64);
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const rt = pmrem.fromEquirectangular(tex);
+  pmrem.dispose();   // 只释放模糊/乒乓这些临时资源，输出 RT 不受影响
+  tex.dispose();
+  return rt.texture;
+}
+</script>
+
+<!-- ══════════ 神经背景层（最底）══════════ -->
+<script>
+/* ============================================================
+   NEURAL BACKGROUND —— 全站最底的神经网络背景
+   节点缓慢漂移 · 按距离连线 · 随机放电（信号沿连线跑）
+   鼠标靠近时局部会被「激发」变亮
+   调参只需要动 INTENSITY：0.5 减半、1.5 加强
+   ============================================================ */
+(function(){
+  'use strict';
+
+  var cv = document.getElementById('neuralLayer');
+  if (!cv) return;
+  var ctx = cv.getContext('2d');
+  if (!ctx) return;
+
+  /* ---------- 可调参数 ---------- */
+  var INTENSITY    = 0.6;      // 整体浓淡总开关
+  var LINK_GAIN    = 1.0;      // 连线亮度倍率 —— 想让线更明显就调大
+  var LINK_FALLOFF = 1.5;      // 连线的距离衰减指数：越小，远处的线也越看得见
+  var NODE_GAIN    = 0.40;     // 节点亮度倍率 —— 想让点更淡就调小
+  var HIDE_ON      = [0];      // 这些页不显示神经背景（0 = 封面）。想全站显示就改成 []
+  var NODE_PER_AREA = 21000;   // 数字越小节点越密
+  var MOUSE_R      = 260;      // 鼠标「激发」半径 px —— 想让激发范围更小/更大就改它
+  var MOUSE_GAIN   = 1.8;      // 激发强度倍率：越大，光标周围亮得越狠
+  var MOUSE_EASE   = 0.12;     // 激发的跟随速度：越大越灵敏（0.05 拖尾长，0.2 几乎瞬时）
+  var LINK_RATIO   = 0.23;     // 连线距离 = 屏幕短边 × 此值
+  var MAX_PULSE    = 16;       // 同屏最多几道信号
+
+  /* ---------- 取自站点调色板 ---------- */
+  var BRASS = '201,160,106';   // --brass 做旧黄铜
+  var TEAL  = '109,143,134';   // --teal  发暗青绿
+  var CORE  = '255,246,228';   // 脉冲亮芯
+  var TAU   = Math.PI * 2;
+
+  var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  var W = 0, H = 0, DPR = 1, LINK = 200;
+  var nodes = [], pulses = [];
+  var mouse = { x: -9999, y: -9999 };
+  var raf = 0, frame = 0, rt = 0;
+  var enabled = true;              // 当前页是否该显示神经背景
+
+  function rnd(a, b){ return a + Math.random() * (b - a); }
+
+  /* ---------- 布点 ---------- */
+  function build(){
+    var n = Math.round((W * H) / NODE_PER_AREA);
+    n = Math.max(38, Math.min(110, n));
+    nodes = [];
+    for (var i = 0; i < n; i++){
+      nodes.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        vx: rnd(-0.15, 0.15),
+        vy: rnd(-0.15, 0.15),
+        r: rnd(1.6, 3.0),
+        teal: Math.random() < 0.22,
+        glow: 0
+      });
+    }
+    LINK = Math.min(Math.max(Math.min(W, H) * LINK_RATIO, 130), 235);
+    pulses = [];
+    frame = 0;
+  }
+
+  /* ---------- 随机放电：挑一个相邻节点当信号目标 ---------- */
+  function spawnPulse(){
+    if (pulses.length >= MAX_PULSE || nodes.length < 2) return;
+
+    /* 光标在场时，一半以上的信号从光标附近起爆 —— 让「我被激活了」这件事一眼可见 */
+    var ai = -1;
+    if (mouse.x > -9000 && Math.random() < 0.6){
+      var pick = -1, bestD = Infinity;
+      for (var s = 0; s < 6; s++){                 // 随机抽 6 个候选，取离光标最近的
+        var ci  = (Math.random() * nodes.length) | 0;
+        var cdx = nodes[ci].x - mouse.x, cdy = nodes[ci].y - mouse.y;
+        var cd  = cdx * cdx + cdy * cdy;
+        if (cd < bestD){ bestD = cd; pick = ci; }
+      }
+      if (bestD < MOUSE_R * MOUSE_R * 1.6) ai = pick;
+    }
+    if (ai < 0) ai = (Math.random() * nodes.length) | 0;
+
+    var a  = nodes[ai];
+    var best = -1, cnt = 0;
+    for (var i = 0; i < nodes.length; i++){
+      if (i === ai) continue;
+      var dx = nodes[i].x - a.x, dy = nodes[i].y - a.y;
+      if (dx * dx + dy * dy < LINK * LINK){
+        cnt++;                                   // 蓄水池抽样：等概率取一个邻居
+        if (Math.random() < 1 / cnt) best = i;
+      }
+    }
+    if (best < 0) return;
+    pulses.push({ a: a, b: nodes[best], p: 0, sp: rnd(0.011, 0.021) });
+  }
+
+  /* ---------- 每帧推进状态 ---------- */
+  function step(){
+    frame++;
+
+    /* 缓慢漂移，出界后从对侧绕回 */
+    for (var i = 0; i < nodes.length; i++){
+      var n = nodes[i];
+      n.x += n.vx;
+      n.y += n.vy;
+      if (n.x < -20) n.x = W + 20; else if (n.x > W + 20) n.x = -20;
+      if (n.y < -20) n.y = H + 20; else if (n.y > H + 20) n.y = -20;
+    }
+
+    /* 鼠标激发：越近越亮，用缓动避免跳变 */
+    for (var j = 0; j < nodes.length; j++){
+      var m  = nodes[j];
+      var dx = m.x - mouse.x, dy = m.y - mouse.y;
+      var md = Math.sqrt(dx * dx + dy * dy);
+      var g  = md < MOUSE_R ? Math.pow(1 - md / MOUSE_R, 0.7) * MOUSE_GAIN : 0;
+      m.glow += (g - m.glow) * MOUSE_EASE;
+    }
+
+    /* 信号推进 */
+    if (frame % 22 === 0 || Math.random() < 0.02) spawnPulse();
+    for (var k = pulses.length - 1; k >= 0; k--){
+      var pu = pulses[k];
+      pu.p += pu.sp;
+      var ax = pu.b.x - pu.a.x, ay = pu.b.y - pu.a.y;
+      if (pu.p > 1 || ax * ax + ay * ay > LINK * LINK * 1.7) pulses.splice(k, 1);
+    }
+  }
+
+  /* ---------- 绘制 ---------- */
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+    var i, j, k;
+
+    /* 连线：距离越近越实。用 globalAlpha 而非拼字符串，省掉每帧上千次字符串构造 */
+    ctx.lineWidth   = 1;
+    ctx.strokeStyle = 'rgb(' + BRASS + ')';
+    for (i = 0; i < nodes.length; i++){
+      var a = nodes[i];
+      for (j = i + 1; j < nodes.length; j++){
+        var b  = nodes[j];
+        var dx = b.x - a.x, dy = b.y - a.y;
+        var d2 = dx * dx + dy * dy;
+        if (d2 > LINK * LINK) continue;
+        var t  = 1 - Math.sqrt(d2) / LINK;
+        var al = Math.pow(t, LINK_FALLOFF) * 0.85 * LINK_GAIN * (1 + (a.glow + b.glow) * 0.9) * INTENSITY;
+        if (al < 0.004) continue;
+        ctx.globalAlpha = al > 1 ? 1 : al;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+      }
+    }
+
+    /* 节点：黄铜为主，少量青绿做层次。每种颜色一批，避免频繁切换 fillStyle */
+    ctx.fillStyle = 'rgb(' + BRASS + ')';
+    for (i = 0; i < nodes.length; i++){
+      var nb = nodes[i];
+      if (nb.teal) continue;
+      var ab = 0.62 * NODE_GAIN * INTENSITY * (1 + nb.glow * 1.8);
+      ctx.globalAlpha = ab > 0.45 ? 0.45 : ab;
+      ctx.beginPath();
+      ctx.arc(nb.x, nb.y, nb.r + nb.glow * 1.4, 0, TAU);
+      ctx.fill();
+    }
+    ctx.fillStyle = 'rgb(' + TEAL + ')';
+    for (i = 0; i < nodes.length; i++){
+      var nt = nodes[i];
+      if (!nt.teal) continue;
+      var at = 0.46 * NODE_GAIN * INTENSITY * (1 + nt.glow * 1.8);
+      ctx.globalAlpha = at > 0.38 ? 0.38 : at;
+      ctx.beginPath();
+      ctx.arc(nt.x, nt.y, nt.r + nt.glow * 1.4, 0, TAU);
+      ctx.fill();
+    }
+
+    /* 信号脉冲：光晕 + 亮芯，飞到两端时自然淡出 */
+    for (k = 0; k < pulses.length; k++){
+      var p    = pulses[k];
+      var fade = Math.sin(p.p * Math.PI) * INTENSITY;
+      if (fade <= 0) continue;
+      var px = p.a.x + (p.b.x - p.a.x) * p.p;
+      var py = p.a.y + (p.b.y - p.a.y) * p.p;
+
+      ctx.globalAlpha = 1;
+      ctx.beginPath();
+      ctx.arc(px, py, 6, 0, TAU);
+      ctx.fillStyle = 'rgba(' + BRASS + ',' + (0.16 * fade).toFixed(3) + ')';
+      ctx.fill();
+
+      ctx.beginPath();
+      ctx.arc(px, py, 1.8, 0, TAU);
+      ctx.fillStyle = 'rgba(' + CORE + ',' + (0.80 * fade).toFixed(3) + ')';
+      ctx.fill();
+    }
+
+    ctx.globalAlpha = 1;
+  }
+
+  function loop(){
+    step();
+    draw();
+    raf = window.requestAnimationFrame(loop);
+  }
+  function stop(){
+    if (raf) window.cancelAnimationFrame(raf);
+    raf = 0;
+  }
+  function start(){
+    stop();
+    if (reduceMQ.matches){ draw(); return; }   // 尊重「减弱动态效果」：只画一帧静态
+    raf = window.requestAnimationFrame(loop);
+  }
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    cv.width  = Math.round(W * DPR);
+    cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    build();
+    if (reduceMQ.matches) draw();
+  }
+  function onResize(){
+    window.clearTimeout(rt);
+    rt = window.setTimeout(resize, 160);
+  }
+
+  /* ---------- 鼠标 / 指针 ---------- */
+  function clearMouse(){ mouse.x = -9999; mouse.y = -9999; }
+  window.addEventListener('pointermove', function(e){
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  }, { passive: true });
+  window.addEventListener('pointerleave', clearMouse, { passive: true });
+  window.addEventListener('blur', clearMouse);
+
+  /* ---------- 切到后台时停掉，省电 ---------- */
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) stop(); else if (enabled) start();
+  });
+  if (reduceMQ.addEventListener) reduceMQ.addEventListener('change', function(){
+    if (enabled) start();
+  });
+
+  /* ---------- 按页面显隐 ---------- */
+  function applyPage(idx){
+    enabled = HIDE_ON.indexOf(idx) === -1;
+    cv.classList.toggle('is-on', enabled);
+    if (enabled) start(); else { stop(); ctx.clearRect(0, 0, W, H); }
+  }
+  window.addEventListener('page:change', function(e){
+    var i = (e && e.detail && typeof e.detail.index === 'number') ? e.detail.index : 0;
+    applyPage(i);
+  });
+
+  /* ---------- 启动 ---------- */
+  resize();
+  window.addEventListener('resize', onResize, { passive: true });
+
+  /* 首屏按当前 active 页决定显隐（封面默认不显示）*/
+  var idx0 = 0;
+  var pgs = document.querySelectorAll ? document.querySelectorAll('.page') : null;
+  if (pgs) for (var pi = 0; pi < pgs.length; pi++){
+    if (pgs[pi].classList.contains('is-active')){ idx0 = pi; break; }
+  }
+  applyPage(idx0);
+})();
+</script>
+
+<script>
+/* 兴趣爱好翻转卡片：触屏设备上点按翻转（悬停由 CSS 负责） */
+(function(){
+  document.querySelectorAll('.hcard').forEach(function(card){
+    card.addEventListener('click', function(){
+      card.classList.toggle('is-flipped');
+    });
+  });
+})();
+
+/* ============================================================
+   CARD SPOTLIGHT —— 给卡片注入鼠标跟随光斑
+   原理：pointermove 时把光标在卡内的局部坐标写进 --mx/--my，
+   .spot 上的 radial-gradient 跟着坐标移动，形成「聚光灯扫过」。
+   触屏设备没有 hover，直接跳过，不浪费事件开销。
+   ============================================================ */
+(function(){
+  'use strict';
+  if (!window.matchMedia('(hover: hover)').matches) return;
+
+  var cards = document.querySelectorAll('.block, .hcard__face--front, .ccard');
+  cards.forEach(function(card){
+    card.classList.add('spot-host');
+
+    var spot = document.createElement('i');
+    spot.className = 'spot';
+    spot.setAttribute('aria-hidden', 'true');
+    card.appendChild(spot);
+
+    card.addEventListener('pointermove', function(e){
+      var r = card.getBoundingClientRect();
+      spot.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+      spot.style.setProperty('--my', (e.clientY - r.top) + 'px');
+    }, { passive: true });
+  });
+})();
+</script>
+
+<script>
+/* ─────────── ASK ANYTHING — Vanishing Input ─────────── */
+(function(){
+  'use strict';
+
+  var placeholders = [
+    "如何把一个想法更快变成原型？",
+    "脑机接口离意念打字还有多远？",
+    "什么是 'undefined'？",
+    "如何真正居中一个 div（这次是认真的）",
+    "EEG 信号和咖啡有什么共同点？",
+    "循环会不会把自己转晕？"
+  ];
+
+  var field  = document.getElementById('askField');
+  var input  = document.getElementById('askInput');
+  var phEl   = document.getElementById('askPh');
+  var log    = document.getElementById('askLog');
+  var ansBox = document.getElementById('askAns');
+  var ansTag = document.getElementById('askAnsTag');
+  var ansTxt = document.getElementById('askAnsText');
+  if (!field || !input || !phEl || !log) return;
+
+  var LOG_IDLE = "SIGNAL STANDBY — 输入问题，停顿片刻看它消散";
+  var LOG_SENT = "SIGNAL RECEIVED — 问题已送入神经网络";
+  var ROTATE_MS = 3400;
+  var VANISH_DELAY_MS = 750;
+  var TYPE_MS = 34;
+
+  /* ── 关键词 → 预置答案（命中第一个就输出）── */
+  var FAQ = [
+    { k: ["专业", "智医", "医学工程", "脑机", "bci", "学什么", "什么方向"],
+      tag: "RESPONSE // MAJOR",
+      a: "我叫张喻嫣，现在在天津大学-香港理工大学深圳未来技术学院读智能医学工程（脑机接口方向）。双校学籍，一半课程由港理工师资全英文授课，主攻神经信号处理与医学 AI。" },
+    { k: ["学校", "学院", "大学", "在哪", "哪里读书", "哪儿"],
+      tag: "RESPONSE // CAMPUS",
+      a: "张喻嫣在读的是天津大学-香港理工大学深圳未来技术学院，校区在深圳南山区大学城国际校区。这所学院 2026 年新设，双校学籍。" },
+    { k: ["爱好", "兴趣", "喜欢", "hobby", "平时做什么", "业余"],
+      tag: "RESPONSE // HOBBY",
+      a: "张喻嫣的耳机基本焊在头上，流行摇滚电子来者不拒；影视上爆米花、文艺、科幻都看，剧和音乐剧也不挑，好片子的安利来者不拒。剩下的时间还会去打打网球 —— 打得一般，但很上头。" },
+    { k: ["目标", "规划", "未来", "打算", "保研", "考研", "夏研", "暑研"],
+      tag: "RESPONSE // PLAN",
+      a: "短期张喻嫣想申一个英国高校的暑期科研（Summer Research），长期目标是保研或考研去顶尖 985，方向锁定 BCI / 神经工程 / 医学 AI 交叉。" },
+    { k: ["名字", "你是谁", "姓名", "who"],
+      tag: "RESPONSE // ID",
+      a: "张喻嫣，ZHANG Yuyan，天津大学-香港理工大学深圳未来技术学院 2026 级智医大一新生，正在医学与 AI 的交叉赛道上摸索前进。" },
+    { k: ["城市", "深圳", "住哪"],
+      tag: "RESPONSE // CITY",
+      a: "张喻嫣的坐标在深圳，南山区大学城国际校区。" }
+  ];
+  var FAQ_FALLBACK = {
+    tag: "RESPONSE // UNKNOWN",
+    a: "这个问题张喻嫣还没背好答案 —— 欢迎通过下面的 GitHub 或 Email 找到我本人，聊比问答有意思。"
+  };
+
+  var phIdx = 0, rotateTimer = null, vanishTimer = null, logTimer = null;
+
+  function showPlaceholder(){
+    phEl.textContent = placeholders[phIdx % placeholders.length];
+    phIdx++;
+    // 重新触发 phIn 入场动画
+    field.classList.remove('is-idle');
+    void field.offsetWidth;
+    field.classList.add('is-idle');
+  }
+
+  function startRotate(){
+    rotateTimer = setInterval(function(){
+      if (field.classList.contains('is-idle')) showPlaceholder();
+    }, ROTATE_MS);
+  }
+
+  function vanish(){
+    respond(); // 消散前先抓住问题，自动输出答案
+    input.classList.add('vanish');
+    window.setTimeout(function(){
+      input.value = '';
+      input.classList.remove('vanish');
+      field.classList.add('is-idle');
+      showPlaceholder();
+    }, 620);
+  }
+
+  function sendFeedback(){
+    log.textContent = LOG_SENT;
+    log.classList.add('is-sent');
+    if (logTimer) window.clearTimeout(logTimer);
+    logTimer = window.setTimeout(function(){
+      log.textContent = LOG_IDLE;
+      log.classList.remove('is-sent');
+    }, 2800);
+  }
+
+  /* ── 回答框：关键词匹配 + 打字机输出 ── */
+  var typeTimer = null;
+
+  function typeAnswer(text){
+    if (typeTimer) { window.clearInterval(typeTimer); typeTimer = null; }
+    ansTxt.textContent = '';
+    ansBox.hidden = false;
+    void ansBox.offsetWidth;
+    ansBox.classList.add('is-on');
+    var i = 0;
+    typeTimer = window.setInterval(function(){
+      ansTxt.textContent = text.slice(0, ++i);
+      if (i >= text.length) { window.clearInterval(typeTimer); typeTimer = null; }
+    }, TYPE_MS);
+  }
+
+  function respond(){
+    var q = (input.value || '').toLowerCase();
+    if (!q) return;
+    var hit = FAQ_FALLBACK;
+    for (var i = 0; i < FAQ.length; i++) {
+      var keys = FAQ[i].k;
+      for (var j = 0; j < keys.length; j++) {
+        if (q.indexOf(keys[j]) !== -1) { hit = FAQ[i]; break; }
+      }
+      if (hit !== FAQ_FALLBACK) break;
+    }
+    ansTag.textContent = hit.tag;
+    typeAnswer(hit.a);
+  }
+
+  showPlaceholder();
+  startRotate();
+
+  input.addEventListener('input', function(){
+    var empty = input.value.length === 0;
+    field.classList.toggle('is-idle', empty);
+    if (vanishTimer) { window.clearTimeout(vanishTimer); vanishTimer = null; }
+    if (!empty && !input.classList.contains('vanish')) {
+      vanishTimer = window.setTimeout(vanish, VANISH_DELAY_MS);
+    }
+  });
+
+  input.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && input.value.length > 0) {
+      if (vanishTimer) { window.clearTimeout(vanishTimer); vanishTimer = null; }
+      vanish();
+      sendFeedback();
+    }
+  });
+})();
+</script>
+
+<!-- ══════════ 云端 SDK（反馈表单 / 站长后台依赖） ══════════ -->
+<script src="assets/vendor/workbuddy-cloud-sdk.global.js"></script>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   04 / 反馈与建议 —— 提交 + 站长后台
+   --------------------------------------------------------------
+   权限说明（在数据库层面强制，不是页面藏起来）：
+     · 访客（未登录）只有 INSERT 权限
+     · 没有任何角色有 SELECT / UPDATE / DELETE 权限
+     · 读取只能走 read_feedbacks() 这个服务端函数，且必须带正确口令
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+  'use strict';
+
+  /* ---- publicConfig：由云服务开通后返回的公开配置，可安全放在前端 ---- */
+  var CFG = {
+    endpoint: 'https://zyy.app.workbuddy.host',
+    publishableKey: 'wbpk_kteiNeglBbPv26gHoIXauV_mpriFK7Atytuj2PNsdgfUengVTY9XzJj'
+  };
+
+  var cloud = null;
+  if (window.WorkBuddyCloud && typeof window.WorkBuddyCloud.createWorkBuddyCloud === 'function') {
+    try { cloud = window.WorkBuddyCloud.createWorkBuddyCloud(CFG); }
+    catch (err) { cloud = null; }
+  }
+
+  /* ---------------- 元素 ---------------- */
+  var form     = document.getElementById('fbForm');
+  var elName   = document.getElementById('fbName');
+  var elTxt    = document.getElementById('fbTxt');
+  var elStars  = document.getElementById('fbStars');
+  var elScore  = document.getElementById('fbScoreTxt');
+  var elLog    = document.getElementById('fbLog');
+  var elBtn    = document.getElementById('fbSend');
+  var rowName  = document.getElementById('fbRowName');
+  var rowRate  = document.getElementById('fbRowRate');
+  var rowTxt   = document.getElementById('fbRowTxt');
+  var elPro    = document.getElementById('fbProfession');
+  var elDev    = document.getElementById('fbDevice');
+
+  var adm      = document.getElementById('adm');
+  var admPass  = document.getElementById('admPass');
+  var admGo    = document.getElementById('admGo');
+  var admMsg   = document.getElementById('admMsg');
+  var admBody  = document.getElementById('admBody');
+  var admList  = document.getElementById('admList');
+  var admTotal = document.getElementById('admTotal');
+  var admAvg   = document.getElementById('admAvg');
+  var admWeek  = document.getElementById('admWeek');
+  var admClose = document.getElementById('admClose');
+  var admRef   = document.getElementById('admRefresh');
+
+  var rating = 0;
+  var profession = '';          /* 职业：学生 / 上班 / 退休（选填）*/
+  var device     = '';          /* 设备：手机 / 平板 / 电脑（选填）*/
+  var sent   = 0;              /* 本次会话已成功提交条数，可无限累加 */
+  var ownerPass = '';          /* 只存内存，绝不写 localStorage / cookie */
+
+  /* 注：全局翻页快捷键已在页面主脚本里加了输入控件判断（焦点在 INPUT/TEXTAREA/SELECT
+     时不拦截），所以这里不需要再 stopPropagation —— 否则后台面板里的 Esc 也会被挡掉。 */
+
+  /* ---------------- 评分星星 ---------------- */
+  function paintStars(v){
+    var st = elStars ? elStars.querySelectorAll('.fb__star') : [];
+    for (var i = 0; i < st.length; i++) {
+      st[i].classList.toggle('is-on', parseInt(st[i].getAttribute('data-v'), 10) <= v);
+    }
+    if (elScore) {
+      if (v > 0) {
+        elScore.innerHTML = '';
+        elScore.appendChild(document.createTextNode('已选 '));
+        var b = document.createElement('b');
+        b.textContent = v + ' / 5';
+        elScore.appendChild(b);
+      } else {
+        elScore.textContent = '未评分';
+      }
+    }
+  }
+  if (elStars) {
+    elStars.addEventListener('click', function(e){
+      var t = e.target.closest ? e.target.closest('.fb__star') : null;
+      if (!t) return;
+      rating = parseInt(t.getAttribute('data-v'), 10) || 0;
+      paintStars(rating);
+      if (rowRate) rowRate.classList.remove('is-bad');
+    });
+  }
+
+  /* ---------------- 单选题：职业 / 设备 ----------------
+     点一个选中同一个题目里的那一个（互斥），再点同一个不取消 —— 选错了直接改点别的更省事 */
+  function bindOpts(host, set){
+    if (!host) return;
+    host.addEventListener('click', function(e){
+      var t = e.target.closest ? e.target.closest('.fb__opt') : null;
+      if (!t) return;
+      var opts = host.querySelectorAll('.fb__opt');
+      for (var i = 0; i < opts.length; i++) {
+        opts[i].classList.toggle('is-on', opts[i] === t);
+      }
+      set(t.getAttribute('data-v') || '');
+    });
+  }
+  bindOpts(elPro, function(v){ profession = v; });
+  bindOpts(elDev, function(v){ device = v; });
+
+  /* ---------------- 状态提示 ---------------- */
+  function log(msg, kind){
+    if (!elLog) return;
+    elLog.textContent = msg;
+    elLog.classList.remove('is-ok', 'is-err');
+    if (kind) elLog.classList.add(kind);
+  }
+  function bad(row, on){
+    if (row) row.classList.toggle('is-bad', !!on);
+  }
+
+  /* ---------------- 提交 ---------------- */
+  function send(){
+    if (!cloud) { log('CLOUD OFFLINE — 提交通道未就绪，请稍后再试', 'is-err'); return; }
+
+    var name = (elName.value || '').trim();
+    var txt  = (elTxt.value  || '').trim();
+
+    bad(rowName, !name);
+    bad(rowRate, rating < 1);
+    bad(rowTxt,  !txt);
+
+    if (!name)        { log('还差一个称呼 —— 昵称、代号都行', 'is-err'); elName.focus(); return; }
+    if (rating < 1)   { log('先给个评分吧，1 到 5 星都行', 'is-err'); return; }
+    if (!txt)         { log('写点什么再提交，哪怕一句也好', 'is-err'); elTxt.focus(); return; }
+
+    elBtn.disabled = true;
+    log('TRANSMITTING…', null);
+
+    cloud.database
+      .from('feedbacks')
+      .insert({
+        name: name, rating: rating, comment: txt,
+        profession: profession || null,   /* 选填，没选就存 null */
+        device: device || null
+      })
+      .then(function(res){
+        if (res && res.error) throw res.error;
+        sent++;
+        /* 支持无限次提交：只清空「意见」框，姓名和评分保留，
+           按钮立刻解锁，想到第二条可以直接接着写 */
+        if (elTxt) elTxt.value = '';
+        if (rowTxt) rowTxt.classList.remove('is-bad');
+        elBtn.disabled = false;
+        log('已送达 ' + sent + ' 条 · 想再写一条就接着填，不限次数', 'is-ok');
+      })
+      .catch(function(err){
+        var code = err && (err.code || (err.details && err.details.code));
+        log('SEND FAILED — 提交失败（' + (code || 'network') + '），稍后再试一次', 'is-err');
+        elBtn.disabled = false;
+      });
+  }
+
+  if (form) form.addEventListener('submit', function(e){ e.preventDefault(); send(); });
+
+  /* ---------------- 站长后台 ---------------- */
+  function isAdminEntry(){
+    return /(\?|&)admin=1(\b|&|$)/.test(window.location.search) ||
+           window.location.hash === '#admin';
+  }
+  function openAdm(){
+    if (!adm) return;
+    adm.classList.add('is-on');
+    if (admPass) admPass.focus();
+  }
+  function closeAdm(){
+    if (!adm) return;
+    adm.classList.remove('is-on');
+    ownerPass = '';
+    if (admBody) admBody.hidden = true;
+    if (admPass) admPass.value = '';
+    if (admMsg)  admMsg.textContent = '';
+    if (admList) admList.innerHTML = '';
+    if (admRecos) admRecos.innerHTML = '';
+    if (admRecoNum) admRecoNum.textContent = '0';
+    /* 把地址栏里的入口痕迹抹掉 */
+    try {
+      var u = new URL(window.location.href);
+      u.searchParams.delete('admin');
+      if (u.hash === '#admin') u.hash = '';
+      window.history.replaceState({}, '', u.toString());
+    } catch (e) {}
+  }
+
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function fmtTime(iso){
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var p = function(n){ return (n < 10 ? '0' : '') + n; };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) +
+           ' ' + p(d.getHours()) + ':' + p(d.getMinutes());
+  }
+  function stars(n){
+    var s = '';
+    for (var i = 1; i <= 5; i++) s += (i <= n ? '★' : '☆');
+    return s;
+  }
+
+  function render(rows){
+    rows = rows || [];
+    var total = rows.length;
+    var sum = 0, week = 0, cut = Date.now() - 7 * 86400000;
+
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      sum += (Number(r.rating) || 0);
+      if (new Date(r.created_at).getTime() >= cut) week++;
+      html +=
+        '<div class="adm__item">' +
+          '<div class="adm__meta">' + esc(fmtTime(r.created_at)) +
+            '<i>' + stars(Number(r.rating) || 0) + '</i>' +
+          '</div>' +
+          '<div class="adm__body">' +
+            '<div class="adm__name">' + esc(r.name) + '</div>' +
+            ((r.profession || r.device)
+              ? '<div class="adm__tags">' +
+                  (r.profession ? '<span>' + esc(r.profession) + '</span>' : '') +
+                  (r.device ? '<span>' + esc(r.device) + '</span>' : '') +
+                '</div>'
+              : '') +
+            '<div class="adm__txt">' + esc(r.comment) + '</div>' +
+          '</div>' +
+        '</div>';
+    }
+
+    if (admList) admList.innerHTML = html || '<p class="adm__empty">还没有收到任何反馈。</p>';
+    if (admTotal) admTotal.textContent = total;
+    if (admAvg)   admAvg.innerHTML = total ? '<em>' + (sum / total).toFixed(1) + '</em> / 5' : '—';
+    if (admWeek)  admWeek.textContent = week;
+    if (admBody)  admBody.hidden = false;
+  }
+
+  function fetchAll(showErr){
+    if (!cloud) {
+      if (admMsg) admMsg.textContent = 'CLOUD OFFLINE — 云端未就绪';
+      return;
+    }
+    if (!ownerPass) return;
+    if (admMsg) admMsg.textContent = 'LOADING…';
+    cloud.database
+      .rpc('read_feedbacks', { pass: ownerPass })
+      .then(function(res){
+        if (res && res.error) throw res.error;
+        if (admMsg) admMsg.textContent = '';
+        render(res && res.data ? res.data : []);
+        fetchRecos();
+      })
+      .catch(function(err){
+        var msg = (err && (err.message || err.details)) ? String(err.message || err.details) : '';
+        if (admMsg) {
+          admMsg.textContent = (msg.indexOf('BAD_PASS') !== -1)
+            ? '口令不正确'
+            : '读取失败，请稍后重试';
+        }
+        if (showErr !== false && admBody) admBody.hidden = true;
+      });
+  }
+
+  if (admGo) admGo.addEventListener('click', function(){
+    var v = admPass ? admPass.value : '';
+    if (!v) { if (admMsg) admMsg.textContent = '请输入口令'; return; }
+    ownerPass = v;
+    fetchAll();
+  });
+  if (admPass) admPass.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { e.preventDefault(); admGo.click(); }
+  });
+  if (admRef)  admRef.addEventListener('click', function(){ fetchAll(false); });
+  if (admClose) admClose.addEventListener('click', closeAdm);
+  if (adm) adm.addEventListener('click', function(e){
+    if (e.target === adm) closeAdm();          /* 点遮罩空白处关闭 */
+  });
+  window.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && adm && adm.classList.contains('is-on')) closeAdm();
+    if (e.key === 'Escape' && shBox && shBox.classList.contains('is-on')) closeShare();
+  });
+
+  /* ══════════════════════════════════════════════════════════
+     05 / 分享安利 —— 双击「音乐 / 影视」卡片唤出输入框
+     --------------------------------------------------------------
+     数据落在 public.recos（kind / content / created_at），
+     权限模型和反馈表完全一致：
+       · 匿名只有 INSERT 权限，没有 SELECT / UPDATE / DELETE
+       · 读取只能走 read_recos() 这个服务端函数，且必须带正确口令
+     ══════════════════════════════════════════════════════════ */
+  var admRecos   = document.getElementById('admRecos');
+  var admRecoNum = document.getElementById('admRecoNum');
+
+  var shBox    = document.getElementById('share');
+  var shTtl    = document.getElementById('shareTtl');
+  var shTip    = document.getElementById('shareTip');
+  var shTxt    = document.getElementById('shareTxt');
+  var shLog    = document.getElementById('shareLog');
+  var shSend   = document.getElementById('shareSend');
+  var shCancel = document.getElementById('shareCancel');
+  var shClose  = document.getElementById('shareClose');
+
+  var SHARE_CFG = {
+    music: {
+      ttl: 'Share // Treasure Playlist',
+      tip: '快来分享你的宝藏歌单！',
+      ph : '歌名 / 歌手 / 一句循环到烂的歌词……随便写'
+    },
+    film: {
+      ttl: 'Share // Hidden Gem',
+      tip: '快来分享你珍藏的影视作品！',
+      ph : '片名 / 导演 / 一句让你记到现在的台词……随便写'
+    }
+  };
+  var shareKind = '';
+  var shared    = 0;
+
+  function shSay(msg, kind){
+    if (!shLog) return;
+    shLog.textContent = msg;
+    shLog.classList.remove('is-ok', 'is-err');
+    if (kind) shLog.classList.add(kind);
+  }
+
+  function openShare(kind){
+    var cfg = SHARE_CFG[kind];
+    if (!cfg || !shBox) return;
+    shareKind = kind;
+    if (shTtl) shTtl.textContent = cfg.ttl;
+    if (shTip) shTip.textContent = cfg.tip;
+    if (shTxt) { shTxt.value = ''; shTxt.placeholder = cfg.ph; }
+    shSay('', null);
+    if (shSend) shSend.disabled = false;
+    shBox.classList.add('is-on');
+    /* 等弹窗真正可见再聚焦，否则 iOS 上键盘会把视图顶变形 */
+    window.setTimeout(function(){ if (shTxt) shTxt.focus(); }, 80);
+  }
+
+  function closeShare(){
+    if (!shBox) return;
+    shBox.classList.remove('is-on');
+    shareKind = '';
+    if (shTxt) shTxt.blur();
+  }
+
+  function sendShare(){
+    if (!cloud) { shSay('CLOUD OFFLINE — 提交通道未就绪，请稍后再试', 'is-err'); return; }
+    if (!shareKind) return;
+
+    var txt = shTxt ? shTxt.value.trim() : '';
+    if (!txt) { shSay('还没写内容 —— 哪怕一个名字也好', 'is-err'); if (shTxt) shTxt.focus(); return; }
+
+    if (shSend) shSend.disabled = true;
+    shSay('TRANSMITTING…', null);
+
+    cloud.database
+      .from('recos')
+      .insert({ kind: shareKind, content: txt })
+      .then(function(res){
+        if (res && res.error) throw res.error;
+        shared++;
+        if (shTxt) { shTxt.value = ''; shTxt.focus(); }
+        if (shSend) shSend.disabled = false;
+        shSay('已送达 ' + shared + ' 条 · 想再安利一个可以继续写', 'is-ok');
+      })
+      .catch(function(err){
+        var code = err && (err.code || (err.details && err.details.code));
+        shSay('SEND FAILED — 提交失败（' + (code || 'network') + '），稍后再试', 'is-err');
+        if (shSend) shSend.disabled = false;
+      });
+  }
+
+  if (shSend)   shSend.addEventListener('click', sendShare);
+  if (shCancel) shCancel.addEventListener('click', closeShare);
+  if (shClose)  shClose.addEventListener('click', closeShare);
+  if (shBox) shBox.addEventListener('click', function(e){
+    if (e.target === shBox) closeShare();      /* 点遮罩空白处关闭 */
+  });
+  if (shTxt) shTxt.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); sendShare(); }
+  });
+
+  /* ---- 双击判定：桌面走 dblclick，触屏自己算两次点按间隔 ---- */
+  document.querySelectorAll('.hcard[data-share]').forEach(function(card){
+    var kind    = card.getAttribute('data-share');
+    var lastMs  = 0;
+    var lastX   = 0;
+    var lastY   = 0;
+    var DUR     = 380;    /* 两次点按的时间窗 */
+    var MOVE    = 28;     /* 允许的手指抖动范围 */
+
+    card.addEventListener('dblclick', function(e){
+      e.preventDefault();
+      openShare(kind);
+    });
+
+    card.addEventListener('touchend', function(e){
+      var t = e.changedTouches && e.changedTouches[0];
+      if (!t) return;
+      var now = Date.now();
+      var near = Math.abs(t.clientX - lastX) < MOVE && Math.abs(t.clientY - lastY) < MOVE;
+      if (now - lastMs < DUR && near) {
+        lastMs = 0;
+        e.preventDefault();          /* 顺手把翻牌的那次点击吃掉，卡片停在背面 */
+        openShare(kind);
+      } else {
+        lastMs = now; lastX = t.clientX; lastY = t.clientY;
+      }
+    }, { passive: false });
+  });
+
+  /* ---------------- 后台：读取分享 ---------------- */
+  function renderRecos(rows){
+    rows = rows || [];
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      html +=
+        '<div class="adm__item">' +
+          '<div class="adm__meta">' + esc(fmtTime(r.created_at)) +
+            '<i>' + esc(r.kind === 'music' ? 'MUSIC' : 'FILM &amp; TV') + '</i>' +
+          '</div>' +
+          '<div class="adm__body">' +
+            '<div class="adm__txt">' + esc(r.content) + '</div>' +
+          '</div>' +
+        '</div>';
+    }
+    if (admRecos)    admRecos.innerHTML = html || '<p class="adm__empty">还没有人留下安利。</p>';
+    if (admRecoNum)  admRecoNum.textContent = rows.length;
+  }
+
+  function fetchRecos(){
+    if (!cloud || !ownerPass || !admRecos) return;
+    cloud.database
+      .rpc('read_recos', { pass: ownerPass })
+      .then(function(res){
+        if (res && res.error) throw res.error;
+        renderRecos(res && res.data ? res.data : []);
+      })
+      .catch(function(){ renderRecos([]); });
+  }
+
+  if (isAdminEntry()) openAdm();
+
+  /* 首次进入页面就提示一下表单是否可用 */
+  if (!cloud && elLog) log('CLOUD OFFLINE — 提交通道未就绪', 'is-err');
+})();
+</script>
+
+</body>
+</html>
