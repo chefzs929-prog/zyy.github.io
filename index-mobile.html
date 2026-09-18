@@ -9,6 +9,32 @@
 <!-- 字体本地化：原先走 fonts.googleapis.com，国内不可达会阻塞首屏，见 assets/fonts/fonts.css -->
 <link rel="stylesheet" href="assets/fonts/fonts.css">
 
+<!-- ══════════ 3D 资源优先加载（首屏主角是机器人，这些全放在 head 抢时间） ══════════
+     ① importmap 提前到这里 —— 模块预载要靠它解析 "three" 这种 bare specifier；
+     ② modulepreload 让 three 与四个 addon 的下载立刻开始，不用等内联模块执行；
+     ③ 模型字节用一句 fetch 立即发起，与 three.js 并行下，而不是排在它后面。
+     ⚠ 顺序不能反：importmap 必须在任何 modulepreload / module 脚本之前，
+       并且全页只能有一个 importmap。 -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "./assets/vendor/three.module.min.js",
+    "three/addons/": "./assets/vendor/jsm/"
+  }
+}
+</script>
+<link rel="modulepreload" href="assets/vendor/three.module.min.js">
+<link rel="modulepreload" href="assets/vendor/jsm/loaders/GLTFLoader.js">
+<link rel="modulepreload" href="assets/vendor/jsm/utils/BufferGeometryUtils.js">
+<link rel="modulepreload" href="assets/vendor/jsm/controls/OrbitControls.js">
+<link rel="modulepreload" href="assets/vendor/jsm/libs/meshopt_decoder.module.js">
+<script>
+/* 模型 218KB，gzip 后约 107KB：这一句在解析到 head 时就发出请求 */
+window.__glbBytes = fetch('assets/fz.glb', { priority: 'high' })
+  .then(function(r){ if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+  .catch(function(){ return null; });
+</script>
+
 <style>
 /* ============================================================
    TOKENS
@@ -2191,16 +2217,7 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 <!-- ══════════ 彩带（彩蛋用；本地文件，不再走 CDN，万一缺失只是没彩带不影响其他功能）══════════ -->
 <script src="assets/vendor/canvas-confetti.min.js"></script>
 
-<!-- ══════════ 3D 机器人（本地 three.js，无外部 CDN 依赖）══════════ -->
-<script type="importmap">
-{
-  "imports": {
-    "three": "./assets/vendor/three.module.min.js",
-    "three/addons/": "./assets/vendor/jsm/"
-  }
-}
-</script>
-
+<!-- ══════════ 3D 机器人（本地 three.js，无外部 CDN 依赖；importmap 已提前到 head）══════════ -->
 <script type="module">
 import * as THREE from 'three';
 import { GLTFLoader }   from 'three/addons/loaders/GLTFLoader.js';
@@ -2282,9 +2299,14 @@ async function boot(){
   controls.target.set(0, 0, 0);
 
   /* ── 载入模型 ── */
-  const gltf  = await new GLTFLoader()
-    .setMeshoptDecoder(MeshoptDecoder)
-    .loadAsync('assets/fz.glb');
+  /* 模型字节已由 head 里那句 fetch 提前下载（见 window.__glbBytes），
+     这里直接解析 —— 这是首屏最快出画面的关键：模型与 three.js 并行下载，
+     而不是等 three.js 全部就绪后再发请求。万一没拿到就退回按 URL 加载。 */
+  const loader = new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
+  const bytes  = await window.__glbBytes;
+  const gltf   = bytes
+    ? await loader.parseAsync(bytes, 'assets/')
+    : await loader.loadAsync('assets/fz.glb');
   const model = gltf.scene;
   model.updateWorldMatrix(true, true);
 
