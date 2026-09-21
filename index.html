@@ -695,6 +695,702 @@ h2.phead__title{
 }
 .hcard__desc{font-size:12.5px;line-height:1.8;color:var(--ink-3)}
 
+/* ============================================================
+   兴趣爱好页 SEC.03 —— 神经网络节点图 + 五个高亮簇
+   这页没有 .page__inner（整屏不滚动）：底图是复用全站神经背景画法的
+   节点网，网上浮着五个「星座」，每个星座一个兴趣颜色，下方挂 DOM 文字标签。
+   星座的配色只在 JS 的 SPOTS 里定义一次，标签的 --c 由 JS 写进来。
+   ============================================================ */
+.inet{
+  position:absolute;inset:0;width:100%;height:100%;
+  z-index:1;pointer-events:none;
+  opacity:0;transition:opacity 1.1s var(--ease);
+}
+.page--interests.is-active .inet{opacity:1}
+
+/* 左上角页眉：横向与其他内页 .wrap 的左缘对齐、纵向跟随 .page__inner 的
+   padding-top 各档取值 —— 翻页时大标题与其他页完全同位，不再左右上下跳。
+   字号仍比常规页眉小一号，不抢中间的图。 */
+.ihead{
+  position:absolute;z-index:3;pointer-events:none;
+  left:max(calc((100% - 1180px)/2), 66px);   /* = 基础档 .wrap 左缘 */
+  top:104px;                                  /* = 基础档 .page__inner padding-top */
+}
+/* 横向跟随 RESPONSIVE 里各档 .wrap 宽度 */
+@media (min-width:1600px){.ihead{left:max(calc((100% - 1360px)/2), 120px)}}
+@media (min-width:2000px){.ihead{left:max(calc((100% - 1520px)/2), 160px)}}
+@media (max-width:1000px){.ihead{left:34px}}
+@media (max-width:640px){.ihead{left:22px}}
+/* 纵向跟随 RESPONSIVE 里各档 .page__inner padding-top */
+@media (max-height:1150px) and (min-height:921px){.ihead{top:92px}}
+@media (max-height:920px){.ihead{top:84px}}
+@media (max-height:780px){.ihead{top:72px}}
+/* idx / 中文小字的间距不再单独覆盖，直接继承全局 .phead__* 的分档节奏，
+   保证与其他页逐像素同位 */
+.ihead .phead__title{font-size:clamp(30px,3.9vw,58px)}
+
+/* 五个兴趣标签：坐标由 JS 写进 --x / --y，resize 时重新算即可跟随 */
+.ilabels{position:absolute;inset:0;z-index:2;pointer-events:none}
+.ilabel{
+  position:absolute;left:var(--x,50%);top:var(--y,50%);
+  transform:translate(-50%,0);
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  text-align:center;white-space:nowrap;
+  opacity:0;
+  transition:transform .55s var(--ease), opacity .8s var(--ease);
+}
+.page--interests.is-active .ilabel{opacity:1}
+.ilabel__zh{
+  font-size:15px;letter-spacing:.22em;line-height:1.25;
+  color:var(--ink-2);
+  /* letter-spacing 会在末字符后也留一格，视觉上整体右偏半个字距，这里补回来 */
+  margin-right:-.22em;
+  transition:color .55s var(--ease), text-shadow .55s var(--ease);
+}
+.ilabel__en{
+  font-family:var(--mono);font-size:10px;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--ink-4);
+  margin-right:-.26em;
+  transition:color .55s var(--ease);
+}
+/* 鼠标靠近该簇：标签上浮 + 提亮 + 染上这个兴趣的颜色光 */
+.ilabel.is-hot{transform:translate(-50%,-9px)}
+.ilabel.is-hot .ilabel__zh{color:#fff;text-shadow:0 0 18px var(--c)}
+.ilabel.is-hot .ilabel__en{color:var(--ink-2)}
+
+/* 窄屏档位已并入上面跟随 .wrap 的分档，不再单独处理 */
+
+/* ============================================================
+   音乐板块（SEC.03 的覆盖式二级视图）—— 黑胶唱机 + 唱片箱
+   左侧 2/3 是唱机（转盘 / 唱片 / 摇臂唱针），右侧 1/3 是唱片箱，
+   箱顶三个分类。拖一张唱片套到转盘上 → 唱片落下、唱针摇进来、转 30 秒。
+
+   z-index 70 —— 压住分页器(65)与四角 HUD(60)，但低于颗粒层 .fx(80)：
+   全站那层噪点与划痕仍盖在面板之上，看着还像同一个网站。
+   唱机内部所有尺寸都按 440×300 的基准画，整体靠 JS 算出的 scale 缩放，
+   所以改内部结构不用管响应式。只做桌面版，移动版另说。
+   ============================================================ */
+.deck{
+  position:fixed;inset:0;z-index:70;overflow:hidden;
+  display:grid;grid-template-columns:2fr 1fr;
+  /* minmax(0,1fr) 不能少：默认的 auto 行高是「内容说了算」，
+     右列会撑到 900+ 然后被 overflow:hidden 切掉最下面一排唱片，
+     而且因为 scrollHeight 等于 clientHeight，箱子还滚不动。
+     写成 minmax(0,1fr) 才是「按容器高度分配、且允许子项收缩」。 */
+  grid-template-rows:minmax(0,1fr);
+  /* 三个板块各一个主题色：切标签时由 JS 改这两个值，
+     唱片机（拖放高亮 / 盘面辉光 / LED）和时间轴（进度条 + 时间数字）都读它们。 */
+  --accent:var(--rust);
+  --accent-glow:var(--rust-dim);
+  background:rgba(9,12,13,.92);
+  -webkit-backdrop-filter:blur(18px) saturate(.85);
+  backdrop-filter:blur(18px) saturate(.85);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .5s var(--ease), visibility 0s linear .5s;
+}
+.deck.is-open{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transition:opacity .5s var(--ease), visibility 0s linear 0s;
+}
+.deck__close{
+  position:absolute;top:26px;right:34px;z-index:5;
+  background:none;border:0;padding:2px 0;
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--ink-4);cursor:var(--cur-bot-on);transition:color .4s var(--ease);
+}
+.deck__close:hover{color:var(--ink-2)}
+
+/* ---------- 左：黑胶唱机 ---------- */
+.deck__left{display:flex;flex-direction:column;min-width:0;padding:58px 30px 56px 66px}
+.deck__head{flex:0 0 auto;margin-bottom:20px}
+.deck__head .phead__idx{margin-bottom:12px}
+.deck__head .phead__title{font-size:clamp(28px,3.4vw,50px)}
+.deck__head .phead__zh{margin-top:10px}
+/* 标题下那行小字 + 右侧分享入口 */
+.deck__sub{display:flex;align-items:center;flex-wrap:wrap;gap:12px 16px;margin-top:13px;max-width:520px}
+.deck__subt{
+  /* flex-basis:100% —— 小字独占一整行，分享按钮因此永远排在下一行 */
+  flex:1 1 100%;min-width:min-content;
+  /* 两句话各是一个「不许内部断开」的 flex 项：
+     装得下 → 同一行；被挤窄 → 第二句整句落到下一行。
+     之前交给浏览器自己断，它会断在「5%」后面，很难看。 */
+  display:flex;flex-wrap:wrap;column-gap:.5em;row-gap:0;
+  font-family:var(--zh);font-size:11.5px;line-height:1.75;letter-spacing:.03em;
+  color:var(--ink-3);
+}
+.deck__line{white-space:nowrap}
+.deck__share{
+  flex:0 0 auto;display:inline-flex;align-items:center;gap:7px;
+  padding:6px 13px;border-radius:999px;
+  border:1px solid var(--line);background:rgba(255,255,255,.035);
+  color:var(--ink-2);font-family:var(--mono);font-size:9px;letter-spacing:.2em;
+  cursor:pointer;
+  transition:color .35s var(--ease),border-color .35s var(--ease),background .35s var(--ease);
+}
+.deck__share::before{content:'+';font-size:12px;line-height:1;opacity:.85}
+.deck__share:hover{
+  color:var(--accent,var(--rust));
+  border-color:var(--accent-line,var(--rust-dim));
+  background:rgba(255,255,255,.075);
+}
+.deck__share:focus-visible{outline:2px solid var(--accent-line,var(--rust-dim));outline-offset:3px}
+.deck__stage{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+
+.tt-slot{position:relative}
+.tt{
+  position:relative;width:440px;height:300px;transform-origin:0 0;
+  border-radius:20px;
+  /* 机身：顶部一道斜向高光 + 竖向冷灰渐变，做出拉丝金属的层次感 */
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,0) 38%),
+    linear-gradient(158deg, #1d2327 0%, #171c20 44%, #101417 100%);
+  border:1px solid rgba(230,236,238,.11);
+  box-shadow:
+    0 42px 80px -40px rgba(0,0,0,.94),
+    0 1px 0 rgba(255,255,255,.05) inset,
+    0 -26px 44px -32px rgba(0,0,0,.95) inset;
+}
+/* 转盘外的环境柔光：把当前封面模糊放大铺在转盘背后，颜色跟着唱片走。
+   这是「网易云播放页右上角」那种感觉的关键一环 —— 老版盘面只有一圈死黑，
+   封面颜色出不来，看着像块塑料。圆心与转盘同心（150,170）。 */
+.tt__aura{
+  position:absolute;left:5px;top:25px;width:290px;height:290px;border-radius:50%;
+  background-position:50% 50%;background-size:cover;background-repeat:no-repeat;
+  filter:blur(36px) saturate(1.5);opacity:0;transform:scale(.86);
+  transition:opacity .9s var(--ease), transform 1.2s var(--ease);
+  pointer-events:none;
+}
+.tt__aura.is-on{opacity:.6;transform:none}
+/* 整机背后再铺一层跟着板块主题色走的弥散光 */
+.tt-slot::before{
+  content:'';position:absolute;left:50%;top:50%;width:640px;height:440px;
+  margin:-220px 0 0 -320px;pointer-events:none;
+  background:radial-gradient(closest-side, var(--accent-glow, rgba(255,255,255,.05)), rgba(0,0,0,0));
+}
+/* 转盘：唱针摇臂的状态整体挂在 .deck 的 data 上，唱针只读 --arm 这一个值 */
+.tt__platter{
+  position:absolute;left:45px;top:65px;width:210px;height:210px;border-radius:50%;z-index:1;
+  background:
+    radial-gradient(circle at 50% 34%, rgba(255,255,255,.055), rgba(255,255,255,0) 58%),
+    #0a0e10;
+  border:1px solid rgba(230,236,238,.09);
+  box-shadow:
+    inset 0 0 48px rgba(0,0,0,.9),
+    0 14px 30px -18px rgba(0,0,0,.95),
+    0 0 0 1px rgba(0,0,0,.5);
+  transition:border-color .35s var(--ease), box-shadow .35s var(--ease);
+}
+.tt__platter.is-over{border-color:var(--accent);
+  box-shadow:inset 0 0 48px rgba(0,0,0,.9),0 0 0 1px var(--accent),0 0 34px 2px var(--accent-glow,rgba(255,255,255,.06))}
+.tt__platter.has-rec .tt__hint{opacity:0}
+.tt__hint{transition:opacity .4s var(--ease)}
+.deck[data-tt-state="playing"] .tt__platter{border-color:var(--accent-line,rgba(230,236,238,.2));
+  box-shadow:inset 0 0 48px rgba(0,0,0,.9),0 0 40px 6px var(--accent-glow,rgba(255,255,255,.06))}
+.tt__hint{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-family:var(--mono);font-size:9px;letter-spacing:.18em;line-height:1.9;
+  color:var(--ink-4);text-align:center;white-space:nowrap;pointer-events:none;
+}
+.tt__record{
+  /* ⚠️ 这个元素是 .tt__platter 的子节点，left/top 相对转盘的**内边距盒**算
+     （站点全局 border-box，所以还要再减掉那 1px 边框），不是相对机身。
+     目标：两个圆心都落在机身的 (150,170)。
+       转盘 border-box 45..255 → 圆心 150，内边距盒从 46 起；
+       唱片 174 宽 → 机身坐标 63，减掉 46 = 17。
+     写成 58/78 之类的机身坐标会让唱片歪到右下角，唱针落点也全错。 */
+  position:absolute;left:17px;top:17px;width:174px;height:174px;
+  opacity:0;transform:scale(.72);
+  transition:opacity .5s var(--ease), transform .75s var(--ease);
+}
+.tt__record.is-on{opacity:1;transform:none}
+/* 静止的镜面高光：挂在唱片容器上而不是盘面上 —— 盘面每秒都在转，
+   高光要是跟着转就成了「灯在转」，一眼假。 */
+.tt__record::after{
+  content:'';position:absolute;inset:0;border-radius:50%;pointer-events:none;
+  background:conic-gradient(from 205deg at 50% 50%,
+    rgba(255,255,255,.14), rgba(255,255,255,0) 18%,
+    rgba(255,255,255,.05) 42%, rgba(255,255,255,0) 64%, rgba(255,255,255,.11));
+}
+.tt__disc{
+  position:absolute;inset:0;border-radius:50%;border:1px solid rgba(230,236,238,.10);
+  /* 外圈原本是一整圈死黑 #0b0e10。现在改成从专辑图的边缘色向外渐变延伸到黑：
+     --rec-edge（边缘本色，贴着中心标签）→ --rec-mid（压暗一档）→ --rec-out（近黑但留点色相）。
+     三个值由 JS 采样封面像素算出来写进 style，取不到就回退成原来的黑。
+     外发光 --rec-glow 是「延伸感」的另一半，让盘沿透出一圈专辑主色。 */
+  background:
+    /* 唱纹用封面主色描（--rec-line），而不是死白 —— 盘面整体就带上了专辑的色调 */
+    repeating-radial-gradient(circle at 50% 50%,
+      var(--rec-line, rgba(230,236,238,.055)) 0 1px, rgba(0,0,0,0) 1px 4px),
+    /* ⚠️ 必须写 closest-side：默认半径是最远角（半条对角线 ≈ 123px），
+       而唱片半径只有 87px —— 100% 那一档根本落不到盘沿，
+       结果盘沿会停在中间色而不是近黑。closest-side 才是「半径 = 半个边长」。
+       66% 那一档是这轮从 52% 推后的：让封面色多撑出去一段，
+       盘沿才有「颜色从标签向盘沿晕开」的感觉，而不是一圈压得死死的黑。 */
+    radial-gradient(circle closest-side at 50% 50%,
+      #14181b 0 34%,
+      var(--rec-edge, #0b0e10) 34%,
+      var(--rec-mid, #0b0e10) 70%,
+      var(--rec-out, #0b0e10) 100%);
+  box-shadow:
+    0 0 34px 4px var(--rec-glow, transparent),
+    0 10px 26px -14px rgba(0,0,0,.9);
+  will-change:transform;
+}
+.tt__label{
+  position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;
+  border-radius:50%;overflow:hidden;
+}
+.tt__label svg,.tt__label img{display:block;width:100%;height:100%;object-fit:cover}
+.tt__hole{
+  position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;
+  border-radius:50%;background:#0b0e10;border:1px solid rgba(230,236,238,.28);
+}
+.tt__pivot{
+  position:absolute;left:374px;top:24px;width:30px;height:30px;border-radius:50%;z-index:2;
+  background:radial-gradient(circle at 38% 30%, #3d464c, #1b2124 72%);
+  border:1px solid rgba(230,236,238,.14);
+  box-shadow:inset 0 0 10px rgba(0,0,0,.8), 0 6px 14px -8px rgba(0,0,0,.9);
+}
+.tt__arm{
+  position:absolute;left:389px;top:39px;width:0;height:0;
+  /* ⚠️ z-index 必须 > 转盘(1) 与转轴(2)：写 auto 的话，正 z-index 的转盘会
+     把唱臂整个盖住，唱针看起来就「跑到唱片下面去了」。 */
+  z-index:3;pointer-events:none;
+  transform:rotate(var(--arm,121deg));
+  transition:transform 1.05s var(--ease) .18s;
+}
+.tt__armbar{
+  position:absolute;left:0;top:-3px;width:206px;height:6px;border-radius:3px;
+  background:linear-gradient(180deg,#b3bdc3,#828b91 46%,#4a5156);
+  box-shadow:0 4px 9px -3px rgba(0,0,0,.75);
+}
+.tt__armbar::before{          /* 尾端配重 */
+  content:'';position:absolute;left:-25px;top:-9px;width:27px;height:22px;
+  border-radius:7px;background:linear-gradient(180deg,#4d575d,#232a2e);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.16), 0 5px 12px -6px rgba(0,0,0,.9);
+}
+.tt__armbar::after{           /* 唱头 */
+  content:'';position:absolute;right:-9px;top:-7px;width:18px;height:18px;
+  border-radius:4px;background:linear-gradient(180deg,#a6b0b6,#5b646a);transform:rotate(12deg);
+  box-shadow:0 3px 7px -2px rgba(0,0,0,.7);
+}
+.deck[data-tt-state="playing"]{--arm:151.2deg}
+.deck[data-tt-state="paused"]{--arm:151.2deg}
+.tt__badge{
+  position:absolute;right:24px;bottom:16px;display:flex;align-items:center;gap:8px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--ink-4);
+}
+.tt__led{
+  width:6px;height:6px;border-radius:50%;background:var(--ink-4);
+  transition:background .4s var(--ease), box-shadow .4s var(--ease);
+}
+.deck[data-tt-state="playing"] .tt__led{background:var(--accent);box-shadow:0 0 8px var(--accent)}
+
+/* 传动条 */
+.tt__ctl{display:flex;align-items:center;gap:14px;margin-top:28px;width:min(520px,100%)}
+.tt__btn{
+  display:inline-flex;align-items:center;gap:8px;
+  background:rgba(255,255,255,.02);border:1px solid var(--line-2);border-radius:999px;padding:8px 18px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ink-2);cursor:var(--cur-bot-on);
+  transition:color .4s var(--ease), border-color .4s var(--ease),
+             background .4s var(--ease), box-shadow .4s var(--ease);
+}
+.tt__btn:hover:not(:disabled){color:var(--ink);border-color:rgba(230,236,238,.34);background:rgba(255,255,255,.05)}
+.tt__btn:disabled{opacity:.32;cursor:default}
+/* 按钮前的小图形跟着播放状态走 —— 文案是 JS 写 textContent 的，图形只能交给 CSS */
+.tt__btn--play::before{content:'▶';font-size:8px;line-height:1;opacity:.9}
+.deck[data-tt-state="playing"] .tt__btn--play::before{content:'❙❙';font-size:9px;letter-spacing:-.5px}
+.deck[data-tt-state="paused"] .tt__btn--play::before{content:'▶'}
+.deck[data-tt-state="ended"] .tt__btn--play::before{content:'↻';font-size:11px}
+.deck[data-tt-state="mute"] .tt__btn--play::before{content:'—'}
+.tt__btn--eject::before{content:'↑';font-size:10px;line-height:1;opacity:.9}
+.deck[data-tt-state="playing"] .tt__btn--play{
+  color:var(--accent);border-color:var(--accent-line,rgba(230,236,238,.2));
+  background:var(--accent-glow,rgba(255,255,255,.05));
+  box-shadow:0 0 20px -7px var(--accent);
+}
+.tt__track{position:relative;flex:1 1 auto;height:3px;border-radius:999px;background:rgba(230,236,238,.10)}
+.tt__track i{
+  position:absolute;left:0;top:0;display:block;width:0;height:3px;border-radius:999px;
+  background:linear-gradient(90deg,var(--accent-line,var(--accent)),var(--accent));
+  box-shadow:0 0 12px -2px var(--accent);
+}
+.tt__track i::after{         /* 进度头那颗小圆点 */
+  content:'';position:absolute;right:-3px;top:50%;width:7px;height:7px;margin-top:-3.5px;
+  border-radius:50%;background:var(--accent);box-shadow:0 0 9px var(--accent);
+}
+.tt__time{
+  font-family:var(--mono);font-size:9px;letter-spacing:.16em;color:var(--accent);white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.deck__now{margin-top:22px;min-height:46px;font-size:13px;line-height:1.7;color:var(--ink-2);text-align:center}
+.deck__now b{color:var(--ink);font-weight:400}
+/* 状态提示（播放结束 / 加载失败 / 站内没音源）—— 常显两行，避免出现时整机上下跳 */
+.deck__tip{
+  display:block;margin-top:6px;font-family:var(--mono);font-size:9px;
+  letter-spacing:.16em;color:var(--ink-4);
+}
+/* 站内取不到音源的曲目：在转盘下方摆官方平台跳转按钮，替代那段空跑的进度动画。
+   hidden 要显式盖一下 —— display:flex 会压过 [hidden] 默认的 display:none */
+.deck__links{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.deck__links[hidden]{display:none}
+.deck__links a{
+  display:inline-flex;align-items:center;gap:7px;
+  border:1px solid var(--line-2);border-radius:999px;padding:7px 16px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--ink-2);text-decoration:none;
+  transition:color .4s var(--ease), border-color .4s var(--ease);
+}
+.deck__links a:hover{color:var(--ink);border-color:rgba(230,236,238,.34)}
+.deck__links a i{font-style:normal;opacity:.55}
+
+/* ---------- 右：唱片箱 ---------- */
+.deck__right{
+  display:flex;flex-direction:column;min-width:0;
+  /* 容器查询锚点：唱片箱按「自己实际有多宽」决定单列/双列，
+     比按视口断点准 —— 左右分栏是 2fr/1fr，视口变了箱子宽度不是等比变 */
+  container-type:inline-size;container-name:deck;
+  border-left:1px solid var(--line);padding:58px 34px 40px 40px;
+}
+.deck__shelfhd{font-family:var(--mono);font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-4)}
+.deck__tabs{
+  display:inline-flex;flex-wrap:wrap;gap:4px;margin:16px 0 20px;padding:4px;
+  border:1px solid var(--line);border-radius:999px;background:rgba(255,255,255,.02);
+}
+.deck__tab{
+  background:none;border:1px solid transparent;border-radius:999px;padding:7px 15px;
+  font-size:12px;letter-spacing:.06em;color:var(--ink-3);cursor:var(--cur-bot-on);
+  transition:color .4s var(--ease), border-color .4s var(--ease),
+             background .4s var(--ease), box-shadow .4s var(--ease);
+}
+.deck__tab:hover{color:var(--ink-2)}
+.deck__tab.is-on{
+  color:var(--accent);border-color:var(--accent-line,rgba(230,236,238,.2));
+  background:var(--accent-glow,rgba(255,255,255,.05));box-shadow:0 0 22px -9px var(--accent);
+}
+.deck__crate{
+  flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 16px;
+  align-content:start;padding:2px 6px 24px 2px;
+}
+.deck__crate::-webkit-scrollbar{width:3px}
+.deck__crate::-webkit-scrollbar-track{background:transparent}
+.deck__crate::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:9px}
+/* 单列时机 = 顶部三个分类按钮再也排不进一行。
+   实测：三个按钮各 70px + gap 4×2 + tabs padding 4×2 + border 1×2 = 228.5px，
+   容器 ≥228.5 时一行放得下，低于此值就会折行 —— 阈值就取 228.5。
+   ⚠ 若以后改分类名（字数变了），这个数字要重算。
+   用容器宽度判断（锚点是 .deck__right），不看视口 ——
+   左右分栏是 2fr/1fr，视口变了箱子宽度不是等比变，视口断点会错位。 */
+@container deck (max-width:228.5px){
+  .deck__crate{grid-template-columns:minmax(0,1fr)}
+}
+/* 老 Safari（<16）不认 @container，用视口兜底：
+   容器 228.5px 对应视口约 856px，取 856 与之对齐 */
+@media (max-width:856px){
+  .deck__crate{grid-template-columns:minmax(0,1fr)}
+}
+
+.sleeve{
+  display:block;background:none;border:0;padding:0;text-align:left;
+  cursor:var(--cur-bot-on);
+  user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent;
+}
+.sleeve__art{
+  position:relative;display:block;width:100%;aspect-ratio:1/1;overflow:hidden;
+  border-radius:4px;border:1px solid var(--line-2);
+  box-shadow:0 14px 26px -18px rgba(0,0,0,.95);
+  transition:transform .5s var(--ease), border-color .5s var(--ease), box-shadow .5s var(--ease);
+}
+/* 唱片套左侧那道压暗的「书脊」，让方块看起来是立着的套子 */
+.sleeve__art::after{
+  content:'';position:absolute;left:0;top:0;bottom:0;width:10px;pointer-events:none;
+  background:linear-gradient(90deg,rgba(9,12,13,.78),rgba(9,12,13,0));
+}
+.sleeve__inner{position:relative;display:block;width:100%;height:100%}
+.sleeve__inner svg,.sleeve__inner img{display:block;width:100%;height:100%}
+/* 真封面盖在程序生成的抽象封面之上；真图加载失败会被 JS 移除，抽象封面自然露出来。
+   ⚠️ pointer-events:none + -webkit-user-drag:none 不能少：<img> 默认可拖拽，
+   不关掉的话「把封面拖到转盘上」会被浏览器原生的图片拖拽接管，唱片根本拖不动。
+   （换成真图之前这里装的是内联 SVG，没这个问题。） */
+.sleeve__img{
+  position:absolute;left:0;top:0;object-fit:cover;background:#14181a;
+  pointer-events:none;-webkit-user-drag:none;user-select:none;-webkit-user-select:none;
+}
+.sleeve__meta{display:block;margin-top:9px}
+.sleeve__meta b{
+  display:block;font-weight:400;font-size:12.5px;color:var(--ink-2);letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  transition:color .4s var(--ease);
+}
+.sleeve__meta i{
+  display:block;font-style:normal;margin-top:4px;
+  font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-4);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* 少数曲目暂时没有艺人名（见 CATS 注释），别在封套下留一行空白 */
+.sleeve__meta i:empty{display:none}
+.sleeve:hover .sleeve__art{
+  transform:translateY(-5px);border-color:rgba(230,236,238,.3);
+  box-shadow:0 24px 34px -20px rgba(0,0,0,.98);
+}
+.sleeve:hover .sleeve__meta b{color:var(--ink)}
+.sleeve.is-on .sleeve__art{border-color:var(--accent-line,rgba(180,98,58,.62))}
+.sleeve.is-on .sleeve__meta b{color:var(--ink)}
+/* 正在出声的那张封套：描边亮起来 + 左下角一组跳动的电平条 */
+.sleeve.is-playing .sleeve__art{
+  border-color:var(--accent);
+  box-shadow:0 22px 34px -20px rgba(0,0,0,.98), 0 0 28px -10px var(--accent);
+}
+.sleeve.is-playing .sleeve__art::before{
+  content:'';position:absolute;left:9px;bottom:9px;z-index:3;width:15px;height:12px;
+  background:
+    linear-gradient(var(--accent),var(--accent)) 0 100%/3px 55% no-repeat,
+    linear-gradient(var(--accent),var(--accent)) 6px 100%/3px 90% no-repeat,
+    linear-gradient(var(--accent),var(--accent)) 12px 100%/3px 40% no-repeat;
+  animation:eqBar .78s ease-in-out infinite alternate;
+}
+@keyframes eqBar{
+  from{background-size:3px 38%,3px 82%,3px 100%}
+  to  {background-size:3px 100%,3px 38%,3px 58%}
+}
+.sleeve.is-src .sleeve__art{opacity:.35}
+.sleeve:focus-visible{outline:0}
+.sleeve:focus-visible .sleeve__art{border-color:var(--rust)}
+
+/* 拖动时跟着光标的那张唱片 */
+.deck__ghost{
+  position:absolute;left:0;top:0;z-index:8;width:124px;height:124px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;pointer-events:none;
+  opacity:0;transition:opacity .16s linear;
+  border:1px solid rgba(230,236,238,.16);
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(230,236,238,.05) 0 1px, rgba(230,236,238,0) 1px 4px),
+    #0c0f11;
+  box-shadow:0 24px 42px -18px rgba(0,0,0,.9);
+}
+.deck__ghost.is-on{opacity:1}
+.deck__ghost span{width:46px;height:46px;border-radius:50%;overflow:hidden}
+.deck__ghost svg,.deck__ghost img{display:block;width:100%;height:100%}
+
+/* 音乐 / 剪辑两个标签多一行「点击进入」：平时隐身，鼠标靠近簇时才浮出来 */
+.ilabel[data-k="music"],
+.ilabel[data-k="edit"]{pointer-events:auto;cursor:var(--cur-bot-on)}
+.ilabel__hint{
+  font-family:var(--mono);font-size:9px;letter-spacing:.2em;color:var(--ink-4);
+  margin-right:-.2em;opacity:0;
+  transition:opacity .45s var(--ease), color .45s var(--ease);
+}
+.ilabel.is-hot .ilabel__hint{opacity:.85;color:var(--ink-3)}
+
+@media (max-width:1180px){
+  .deck__left{padding:54px 24px 44px 44px}
+  .deck__right{padding:54px 26px 32px 30px}
+  .deck__head .phead__title{font-size:clamp(24px,3.2vw,40px)}
+  /* 面板挤了就别硬撑一行：两句各占一行 */
+  .deck__sub{max-width:300px}
+  .deck__line{display:block}
+}
+
+/* ============================================================
+   剪辑板块（覆盖式面板 #clips）
+   左侧一栏「标题 + 作品清单」，右侧是滚动驱动的堆叠卡片；卡片看完接一条
+   片尾署名走马灯。从兴趣页「剪辑」簇 / 文字标签进入，Esc 或右上角关闭。
+   z-index 70，与音乐面板同级；颗粒层 .fx(80) 仍盖在最上面。
+   ============================================================ */
+.clips{
+  position:fixed;inset:0;z-index:70;overflow:hidden;
+  display:grid;grid-template-columns:minmax(230px,25%) minmax(0,1fr);
+  background:rgba(9,12,13,.975);
+  -webkit-backdrop-filter:blur(22px) saturate(.85);
+  backdrop-filter:blur(22px) saturate(.85);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .5s var(--ease), visibility 0s linear .5s;
+}
+.clips.is-open{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transition:opacity .5s var(--ease), visibility 0s linear 0s;
+}
+.clips__close{
+  position:absolute;top:26px;right:34px;z-index:9;
+  background:none;border:0;padding:2px 0;
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--ink-4);cursor:var(--cur-bot-on);transition:color .4s var(--ease);
+}
+.clips__close:hover{color:var(--ink-2)}
+.clips__close:focus-visible{outline:1px solid var(--rust);outline-offset:4px}
+
+/* ---------- 左：标题 + 作品清单 ---------- */
+.clips__aside{
+  display:flex;flex-direction:column;min-width:0;
+  padding:58px 26px 40px clamp(28px,4vw,66px);
+}
+.clips__head{flex:0 0 auto}
+.clips__head .phead__idx{margin-bottom:11px}
+.clips__head .phead__idx::after{max-width:72px}
+.clips__head .phead__title{font-size:clamp(24px,3vw,44px)}
+.clips__head .phead__zh{margin-top:9px;font-size:13px}
+.clips__subt{margin-top:13px;font-size:12.5px;line-height:1.95;color:var(--ink-4)}
+   /* 作品多了以后清单是一长条，所以单行紧凑排；放不下时自己滚，
+      当前那一项由 JS 带进可视区（见 syncTocScroll） */
+.clips__toc{
+  position:relative;
+  list-style:none;flex:1 1 auto;min-height:0;overflow-y:auto;
+  margin-top:clamp(18px,3vh,30px);
+  display:flex;flex-direction:column;scrollbar-width:none;
+}
+.clips__toc::-webkit-scrollbar{width:0}
+.clips__tocitem{
+  display:flex;align-items:baseline;gap:9px;flex:0 0 auto;
+  padding:11px 8px 11px 12px;border-left:1px solid var(--line);
+  cursor:var(--cur-bot-on);
+  transition:border-color .4s var(--ease), background .4s var(--ease);
+}
+.clips__tocitem:hover{border-left-color:var(--line-2);background:rgba(230,236,238,.022)}
+.clips__tocitem.is-on{border-left-color:var(--rust);background:rgba(180,98,58,.055)}
+.clips__tocidx{flex:0 0 auto;font-family:var(--mono);font-size:9px;letter-spacing:.14em;color:var(--ink-4)}
+.clips__tocitem.is-on .clips__tocidx{color:var(--rust)}
+.clips__toct{
+  flex:1 1 auto;min-width:0;font-size:12.5px;color:var(--ink-3);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  transition:color .4s var(--ease);
+}
+.clips__tocitem.is-on .clips__toct{color:var(--ink)}
+.clips__tocc{flex:0 0 auto;font-family:var(--mono);font-size:8.5px;letter-spacing:.1em;color:var(--ink-4)}
+/* 末尾那句「还有很多很多」不是作品，不可点、也不参与高亮 */
+.clips__tocitem--tail{cursor:default;pointer-events:none}
+.clips__tocitem--tail .clips__toct{color:var(--ink-4)}
+
+/* ---------- 右：堆叠卡片舞台（唯一的滚动容器） ---------- */
+.clips__stage{
+  min-width:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:none;
+}
+.clips__stage::-webkit-scrollbar{width:0}
+.cstack{position:relative;padding-bottom:22vh}
+.cstack__item{
+  /* --cl-ph 由 JS 写成舞台的实时高度；sticky 让每一张都停在同一个位置，
+     后一张从下面滑上来盖住前一张，堆叠感就是这么来的 */
+  height:var(--cl-ph,100vh);
+  position:sticky;top:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:0 clamp(20px,4vw,64px);
+}
+
+/* 单张作品卡：整张就是一张 16:9 剧照，卡片里不再塞别的元素 */
+.clip{
+  position:relative;
+  /* 宽度同时受三头夹：上限 900px（大屏不至于糊满）、不超可用宽度、
+     高度也别超过视口的 82%（矮窗里不会被顶到边缘）——三条取最小。 */
+  width:min(900px, 100%, 82vh);
+  aspect-ratio:16/9;overflow:hidden;border-radius:14px;
+  /* 整体往下沉一档：卡片本来在它那一屏里垂直居中，看着偏上，
+     这里额外往下推 5vh，视觉重心落在画面中下部。
+     ⚠ 必须用独立的 translate 属性，不能写进 transform —— .clip 的 transform
+     是 paintStack 每帧写的（缩放堆叠），写进去会被立刻覆盖掉。
+     ⚠ 5vh 是上限：行程减卡片高留下的余量只有 (0.57 − 0.46)/2 ≈ 5.5vh，
+       再大就压到下一张的地盘里了。 */
+  translate:0 5vh;
+  border:1px solid var(--line-2);background:#05070a;
+  box-shadow:0 44px 96px -44px rgba(0,0,0,.95), inset 0 1px 0 rgba(230,236,238,.05);
+  transform-origin:50% 50%;
+  will-change:transform;
+}
+.clip img{
+  display:block;width:100%;height:100%;object-fit:cover;
+  -webkit-user-drag:none;user-select:none;pointer-events:none;
+}
+/* 四角轻微压暗，画面更「上幕布」一点（纯装饰层，不动图片本身） */
+.clip::after{
+  content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:radial-gradient(126% 96% at 50% 42%, rgba(5,7,10,0) 52%, rgba(5,7,10,.46) 100%);
+}
+/* 被后一张盖住时压暗用的遮罩：改 opacity 比改 filter 便宜，Safari 也不会另起合成层 */
+.clip__shade{
+  position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;
+  background:#05070a;opacity:0;
+}
+
+/* ---------- 第二组：片尾，左右滑动 + 3D 层叠景深切换 ---------- */
+.pilesec{
+  min-height:100%;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:clamp(40px,8vh,86px) clamp(20px,4vw,64px) clamp(46px,9vh,100px);
+}
+.pilesec__hd{margin-bottom:clamp(10px,2.4vh,26px)}
+.pilesec__k{font-family:var(--mono);font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-4)}
+.pilesec__t{margin-top:11px;font-size:clamp(15px,1.4vw,19px);color:var(--ink-2)}
+
+/* perspective 给的是「景深」本身：横向偏移 + translateZ 后退 + rotateY 侧转，
+   于是中间那张最近最亮、两侧依次变小变暗往后退。 */
+.swipe{
+  position:relative;flex:0 0 auto;width:100%;
+  height:clamp(230px,44vh,420px);
+  -webkit-perspective:1350px;perspective:1350px;
+  perspective-origin:50% 50%;
+  touch-action:pan-y;                       /* 竖向照常滚页，横向留给手势 */
+  cursor:grab;user-select:none;-webkit-user-select:none;
+  outline:0;
+}
+.swipe:focus-visible .swipe__card--cur{
+  box-shadow:0 40px 90px -40px rgba(0,0,0,.95), 0 0 0 1px var(--rust);
+}
+.swipe.is-drag{cursor:grabbing}
+.swipe__card{
+  position:absolute;inset:0;margin:auto;    /* absolute + inset:0 + margin:auto = 完美居中 */
+  width:clamp(340px,44vw,600px);aspect-ratio:16/9;
+  border:1px solid var(--line-2);border-radius:12px;overflow:hidden;
+  background:#05070a;box-shadow:0 40px 90px -40px rgba(0,0,0,.95);
+  -webkit-backface-visibility:hidden;backface-visibility:hidden;
+  will-change:transform,opacity;
+  transition:transform .62s var(--ease), opacity .5s var(--ease);
+}
+ /* 拖动过程中必须掐掉补间，否则手感像在拽橡皮筋 */
+.swipe.is-drag .swipe__card{transition:none}
+.swipe__card img{
+  display:block;width:100%;height:100%;object-fit:cover;
+  pointer-events:none;-webkit-user-drag:none;user-select:none;
+}
+.swipe__bar{
+  display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  width:min(880px,100%,112vh);margin:clamp(14px,2.4vh,24px) auto 0;
+}
+.swipe__num{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-2)}
+.swipe__btn{
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--line);color:var(--ink-3);
+  font-size:12px;line-height:1;
+  transition:border-color .4s var(--ease), color .4s var(--ease);
+}
+.swipe__btn:hover{border-color:var(--line-2);color:var(--ink)}
+.swipe__btn:focus-visible{outline:1px solid var(--rust);outline-offset:3px}
+
+@media (max-width:1180px){
+  .clips__aside{padding:48px 18px 30px 30px}
+  .clips__head .phead__title{font-size:clamp(20px,3.2vw,32px)}
+}
+/* 窄屏：左侧那栏改成顶部横条，舞台独占其余高度；卡片也竖过来（文上图下） */
+@media (max-width:900px){
+  .clips{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .clips__aside{padding:44px 22px 16px;flex-direction:row;align-items:flex-end;gap:20px;flex-wrap:wrap}
+  .clips__toc{flex-direction:row;overflow-x:auto;overflow-y:hidden;margin-top:0;
+    flex:1 1 100%;gap:6px;scrollbar-width:none}
+  .clips__toc::-webkit-scrollbar{height:0}
+  .clips__tocitem{border-left:0;border-bottom:1px solid var(--line);padding:7px 12px 8px 4px;flex:0 0 auto}
+  .clips__tocitem.is-on{border-bottom-color:var(--rust);background:none}
+  .clips__tocc{display:none}
+  .clip{grid-template-columns:minmax(0,1fr);gap:14px}
+  .clip__meta{flex-direction:row;align-items:baseline;gap:12px;flex-wrap:wrap;justify-content:flex-start}
+  .clip__t{margin-top:0;font-size:clamp(18px,4.4vw,24px)}
+  .clip__c{margin-top:0}
+  .clip__rule{display:none}
+}
+@media (max-width:560px){
+  .clip{padding:12px}
+  .mcard{width:200px}
+}
+
 /* 询问我 —— Ask Anything / Vanishing Input（居中主视觉）
    --ask-w 是这一页的统一定宽：输入框与下方联系卡片共用，永远左右对齐 */
 .askbox{max-width:var(--ask-w,900px);margin:0 auto 30px}
@@ -1287,8 +1983,9 @@ h2.phead__title{
 <nav class="pager" id="pager" aria-label="页面导航">
   <button data-go="0" class="is-on"><span class="lbl">Cover</span><span class="bar"></span></button>
   <button data-go="1"><span class="lbl">About</span><span class="bar"></span></button>
-  <button data-go="2"><span class="lbl">Contact</span><span class="bar"></span></button>
-  <button data-go="3"><span class="lbl">Feedback</span><span class="bar"></span></button>
+  <button data-go="2"><span class="lbl">Interests</span><span class="bar"></span></button>
+  <button data-go="3"><span class="lbl">Contact</span><span class="bar"></span></button>
+  <button data-go="4"><span class="lbl">Feedback</span><span class="bar"></span></button>
 </nav>
 
 <!-- ══════════ 欢迎语浮层（首次点击封面任意处时打字机弹出） ══════════ -->
@@ -1434,44 +2131,7 @@ h2.phead__title{
               </div>
             </section>
 
-            <section class="block reveal">
-              <h3 class="block__t"><i>03</i>兴趣爱好<em>Beyond</em></h3>
-              <div class="hobby-grid">
-                <div class="hcard" data-share="music">
-                  <div class="hcard__inner">
-                    <div class="hcard__face hcard__face--front">
-                      <span class="hcard__emoji">🎵</span>
-                    </div>
-                    <div class="hcard__face hcard__face--back">
-                      <span class="hcard__back-name">Music</span>
-                      <p class="hcard__desc">耳机是固定穿搭，流行摇滚电子啥都听。</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="hcard">
-                  <div class="hcard__inner">
-                    <div class="hcard__face hcard__face--front">
-                      <span class="hcard__emoji">🎾</span>
-                    </div>
-                    <div class="hcard__face hcard__face--back">
-                      <span class="hcard__back-name">Tennis</span>
-                      <p class="hcard__desc">打得不算好但很上头，周末约球是最快乐的事。</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="hcard" data-share="film">
-                  <div class="hcard__inner">
-                    <div class="hcard__face hcard__face--front">
-                      <span class="hcard__emoji">🎬</span>
-                    </div>
-                    <div class="hcard__face hcard__face--back">
-                      <span class="hcard__back-name">Film &amp; TV</span>
-                      <p class="hcard__desc">爆米花文艺科幻都爱看，电视剧音乐剧也爱看，好片子的安利来者不拒。</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <!-- 兴趣爱好已独立成第三页 SEC.03 — INTERESTS（神经网络节点图） -->
 
           </div>
 
@@ -1484,17 +2144,15 @@ h2.phead__title{
                 <div class="tl__i on">
                   <div class="tl__y">2026 — NOW</div>
                   <div class="tl__t">入学天津大学 — 香港理工大学深圳未来技术学院</div>
-                  <div class="tl__d">智能医学工程（脑机接口方向）· 占位描述</div>
+                  <div class="tl__d">智能医学工程（脑机接口方向）</div>
                 </div>
                 <div class="tl__i">
                   <div class="tl__y">2025</div>
-                  <div class="tl__t">（占位）高中毕业 / 升学准备</div>
-                  <div class="tl__d">此处替换为你的实际经历</div>
+                  <div class="tl__t">高中毕业 · 升学准备</div>
                 </div>
                 <div class="tl__i">
-                  <div class="tl__y">待补充</div>
-                  <div class="tl__t">（占位）科研项目 / 学科竞赛 / 暑校</div>
-                  <div class="tl__d">此处替换为你的实际经历</div>
+                  <div class="tl__y">NEXT</div>
+                  <div class="tl__t">科研项目 / 学科竞赛 / 暑校</div>
                 </div>
               </div>
             </section>
@@ -1534,13 +2192,62 @@ h2.phead__title{
     </div>
   </section>
 
-  <!-- ─────────── 03 ASK ANYTHING ─────────── -->
-  <section class="page page--contact" data-pid="SEC.03 — ASK">
+  <!-- ─────────── 03 INTERESTS ───────────
+       兴趣爱好页：五个兴趣 = 神经网络上的五个高亮簇。
+       画法沿用全站底部的神经背景（同款 brass/teal 连线 + 缓慢漂移 + 随机放电），
+       区别只有三点：节点更密、多出五个带颜色的兴趣簇、簇下方挂 DOM 文字标签。
+       canvas 只在这一页 is-active 时才跑 rAF，离开即停，不和其它页抢性能。 -->
+  <section class="page page--interests" data-pid="SEC.03 — INTERESTS">
+
+    <canvas class="inet" id="interestNet" aria-hidden="true"></canvas>
+
+    <!-- 五个兴趣标签：坐标由 JS 按簇心的百分比写入，resize 时自动跟着走 -->
+    <div class="ilabels" id="iLabels">
+
+      <div class="ilabel" data-k="music" role="button" tabindex="0" aria-label="打开音乐板块">
+        <span class="ilabel__zh">音乐</span>
+        <span class="ilabel__en">Music</span>
+        <span class="ilabel__hint">点击进入</span>
+      </div>
+
+      <div class="ilabel" data-k="race">
+        <span class="ilabel__zh">竞速</span>
+        <span class="ilabel__en">Racing</span>
+      </div>
+
+      <div class="ilabel" data-k="tennis">
+        <span class="ilabel__zh">网球</span>
+        <span class="ilabel__en">Tennis</span>
+      </div>
+
+      <div class="ilabel" data-k="film">
+        <span class="ilabel__zh">影视</span>
+        <span class="ilabel__en">Film &amp; TV</span>
+      </div>
+
+      <div class="ilabel" data-k="edit" role="button" tabindex="0" aria-label="打开剪辑板块">
+        <span class="ilabel__zh">剪辑</span>
+        <span class="ilabel__en">Editing</span>
+        <span class="ilabel__hint">点击进入</span>
+      </div>
+
+    </div>
+
+    <header class="ihead">
+      <div class="phead__idx">03 / Interests</div>
+      <h2 class="phead__title chrome">INTERESTS</h2>
+      <p class="phead__zh">兴趣爱好</p>
+    </header>
+
+  </section>
+
+  <!-- ─────────── 04 ASK ANYTHING ─────────── -->
+  <section class="page page--contact" data-pid="SEC.04 — ASK">
     <div class="page__inner">
       <div class="wrap">
 
         <header class="phead reveal">
-          <div class="phead__idx">03 / Ask</div>
+          <div class="phead__idx">04 / Ask</div>
           <h2 class="phead__title chrome">ASK ANYTHING</h2>
           <p class="phead__zh">询问我</p>
           <p class="phead__lead">
@@ -1598,13 +2305,13 @@ h2.phead__title{
     </div>
   </section>
 
-  <!-- ─────────── 04 FEEDBACK ─────────── -->
-  <section class="page page--feedback" data-pid="SEC.04 — FEEDBACK">
+  <!-- ─────────── 05 FEEDBACK ─────────── -->
+  <section class="page page--feedback" data-pid="SEC.05 — FEEDBACK">
     <div class="page__inner">
       <div class="wrap">
 
         <header class="phead reveal">
-          <div class="phead__idx">04 / Feedback</div>
+          <div class="phead__idx">05 / Feedback</div>
           <h2 class="phead__title chrome">FEEDBACK</h2>
           <p class="phead__zh">反馈与建议</p>
         </header>
@@ -1689,6 +2396,111 @@ h2.phead__title{
   </section>
 
 </main>
+
+<!-- ══════════ 音乐板块：黑胶唱机 + 唱片箱（覆盖式面板，从「音乐」簇进入） ══════════ -->
+<div class="deck" id="deck" data-tt-state="idle" tabindex="-1" role="dialog" aria-modal="true" aria-label="音乐 · 黑胶唱机">
+
+  <div class="deck__left">
+    <header class="deck__head">
+      <div class="phead__idx">03.1 / Music</div>
+      <h2 class="phead__title chrome">MUSIC</h2>
+      <p class="phead__zh">音乐</p>
+      <div class="deck__sub">
+        <p class="deck__subt">
+          <span class="deck__line">这里是从我歌单精选的5%</span>
+          <span class="deck__line">如果可以的话 也想听听你的宝藏歌曲</span>
+        </p>
+        <button class="deck__share" type="button" id="deckShare">分享你的宝藏歌曲</button>
+      </div>
+    </header>
+
+    <div class="deck__stage">
+      <div class="tt-slot" id="ttSlot">
+        <div class="tt" id="tt">
+
+          <!-- 转盘外的环境光：一张模糊放大的当前封面，颜色随唱片走（见 .tt__aura） -->
+          <div class="tt__aura" id="ttAura" aria-hidden="true"></div>
+
+          <div class="tt__platter" id="ttPlatter">
+            <div class="tt__hint" id="ttHint">拖一张唱片<br>到转盘上</div>
+            <div class="tt__record" id="ttRecord">
+              <div class="tt__disc" id="ttDisc">
+                <div class="tt__label" id="ttLabel"></div>
+                <span class="tt__hole"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="tt__pivot"></div>
+          <div class="tt__arm"><div class="tt__armbar"></div></div>
+
+          <div class="tt__badge"><span class="tt__led"></span><span id="ttBadge">33⅓ RPM · 待机</span></div>
+        </div>
+      </div>
+
+      <div class="tt__ctl">
+        <button class="tt__btn tt__btn--play" type="button" id="ttPlay" disabled>播放</button>
+        <button class="tt__btn tt__btn--eject" type="button" id="ttEject" disabled>取出</button>
+        <div class="tt__track"><i id="ttBar"></i></div>
+        <span class="tt__time" id="ttTime">0:00 / 0:30</span>
+      </div>
+
+      <p class="deck__now" id="ttNow">把右侧的唱片拖到转盘上</p>
+      <!-- 站内取不到音源的曲目：这里给出官方平台跳转按钮（内容由 JS 按曲目的 ext 字段填） -->
+      <div class="deck__links" id="ttLinks" hidden></div>
+    </div>
+  </div>
+
+  <aside class="deck__right">
+    <div class="deck__shelfhd">Record crate / 唱片箱</div>
+    <div class="deck__tabs" id="deckTabs"></div>
+    <div class="deck__crate" id="deckCrate"></div>
+  </aside>
+
+  <button class="deck__close" type="button" id="deckClose">关闭 ✕</button>
+  <div class="deck__ghost" id="deckGhost" aria-hidden="true"></div>
+</div>
+
+<!-- ══════════ 剪辑板块：堆叠卡片作品集（覆盖式面板，从「剪辑」簇进入） ══════════
+     左栏是标题 + 作品清单（跟着滚动高亮，点一下直接翻到那张），右栏是堆叠卡片。
+     卡片内容与走马灯都是第一次打开时才注入的 —— 藏在面板里的 <img> 照样会立刻
+     发请求，loading="lazy" 拦不住，18 张一起抢首屏带宽不划算。 -->
+<div class="clips" id="clips" tabindex="-1" role="dialog" aria-modal="true" aria-label="剪辑 · 作品集">
+
+  <aside class="clips__aside">
+    <header class="clips__head">
+      <div class="phead__idx">03.2 / Editing</div>
+      <h2 class="phead__title chrome">EDITING</h2>
+      <p class="phead__zh">剪辑</p>
+      <p class="clips__subt">在电视台当牛马的这些年</p>
+    </header>
+
+    <ol class="clips__toc" id="clipsToc"></ol>
+  </aside>
+
+  <div class="clips__stage" id="clipsStage">
+    <!-- 第一组：九张正片，滚动堆叠 -->
+    <div class="cstack" id="cstack"></div>
+
+    <!-- 第二组：片尾，左右拖／滚轮／点两侧切换，带 3D 层叠景深 -->
+    <section class="pilesec" id="pileSec">
+      <div class="pilesec__hd">
+        <span class="pilesec__k">Credits / 片尾</span>
+        <p class="pilesec__t">还有一些片尾</p>
+      </div>
+
+      <div class="swipe" id="swipe" tabindex="0" role="group" aria-label="片尾：左右拖动或滚滚轮换一张"></div>
+
+      <div class="swipe__bar">
+        <span class="swipe__num" id="swipeNum">01 / 09</span>
+        <button class="swipe__btn" type="button" id="swipePrev" aria-label="上一张">←</button>
+        <button class="swipe__btn" type="button" id="swipeNext" aria-label="下一张">→</button>
+      </div>
+    </section>
+  </div>
+
+  <button class="clips__close" type="button" id="clipsClose">关闭 ✕</button>
+</div>
 
 <!-- ══════════ 站长后台（隐藏入口：网址后加 ?admin=1） ══════════ -->
 <div class="adm" id="adm" role="dialog" aria-modal="true" aria-label="站长后台">
@@ -2948,6 +3760,460 @@ function makeEnvMap(renderer){
 })();
 </script>
 
+<!-- ══════════ 兴趣爱好页：神经网络 + 五个兴趣簇 ══════════ -->
+<script>
+/* ============================================================
+   INTERESTS NET —— 兴趣爱好页专属的神经网络节点图
+   画法沿用上面那套全站神经背景：同样的距离连线、同样的缓慢漂移、
+   同样的随机放电。区别只有两点：节点更密，以及网上浮着五个「星座」，
+   每个星座一个兴趣颜色，簇心下方挂一枚 DOM 文字标签。
+   只有这一页 active 时才跑 requestAnimationFrame，离开立刻停。
+
+   改参：INTENSITY 调浓淡，HUB_R 调簇大小，BREATH / BREATH_AMP 调呼吸，
+        HOVER_R 调鼠标激发半径，SPOTS 里的 rx / ry 调五个簇的位置。
+   ============================================================ */
+(function(){
+  'use strict';
+
+  var cv   = document.getElementById('interestNet');
+  var wrap = document.getElementById('iLabels');
+  if (!cv || !wrap) return;
+  var ctx = cv.getContext('2d');
+  if (!ctx) return;
+  var page = cv.closest ? cv.closest('.page') : null;
+  if (!page) return;
+
+  /* ---------- 五个兴趣 ----------
+     rx / ry 是簇心在屏幕上的相对位置（0~1）。这五个点取自同一个椭圆上的等分
+     角度（正五边形：顶端一个，腰部左右各一个，底部左右各一个），所以间距是均匀的；
+     2026-09-21 整体下移 0.025（椭圆心约 (0.47, 0.515)）：横版下构图偏上，
+     上方留白多一点更透气；标签挂距同时收小（见 layout 里的 off），下移才不会
+     把标签顶出底部安全线。左上角页眉现在与其他内页同位，纵向占高随视口分档。
+
+     可用画幅的四条边（动坐标前先看这里）：
+       右 —— 分页器从 x≈0.88W 起（窄屏更靠左），簇心最远到 0.755 还很安全；
+       下 —— 标签底不能超过 H-84，off≈88 时 1024×768 下簇心 ry 的上限约 0.72；
+       上 —— 簇顶端的成员还会往上探约 70px，别顶到四角 HUD（y 26~62）和页眉。
+     颜色只在这里定义一份：hex 给 CSS 标签的光晕用，rgb 给 canvas 画半透明用。
+     （换色要两处一起改，格式错了 canvas 会整片发黑。） */
+  var SPOTS = [
+    /* 正五边形五等分：顶端一个、腰部左右各一个、底部左右各一个。
+       椭圆心约 (0.47, 0.52)、横半轴 0.30、纵半轴 0.22；
+       底部一对在腰位基础上再向中间收 0.03、向下压 0.017（0.294→0.325 /
+       0.646→0.615 / 0.698→0.715），五个点收拢得更聚拢、底部更沉。 */
+    { k:'tennis', rx:0.470, ry:0.300, hex:'#3fb98d', rgb:'63,185,141'  },  // 青绿 · 上中
+    { k:'music',  rx:0.185, ry:0.452, hex:'#5f96dd', rgb:'95,150,221'  },  // 蓝 · 左腰
+    { k:'edit',   rx:0.755, ry:0.452, hex:'#9a80d6', rgb:'154,128,214' },  // 紫 · 右腰
+    { k:'race',   rx:0.325, ry:0.715, hex:'#dc7f9f', rgb:'220,127,159' },  // 粉 · 左下
+    { k:'film',   rx:0.615, ry:0.715, hex:'#d8a63a', rgb:'216,166,58'  }   // 琥珀 · 右下
+  ];
+
+  /* ---------- 可调参数 ---------- */
+  var INTENSITY     = 1.0;     // 总浓淡：0.5 减半、1.5 加浓
+  var NODE_PER_AREA = 15000;   // 每多少 px² 放一个背景节点，数字越小越密
+  var HUB_MEMBERS   = 5;       // 每个簇除了中心主节点外，再挂几个小节点（越少越稀疏）
+  var HUB_R         = 84;      // 簇的扩散半径 px —— 同样几个点，半径越大越疏朗
+  var HUB_GLOW      = 46;      // 簇心光晕半径 px：径向渐变，可以比原来的实心圈大得多
+  var HOVER_R       = 165;     // 鼠标进入这个半径，该簇被「激发」
+  var LINK_RATIO    = 0.23;    // 连线阈值 = 屏幕短边 × 此值
+  var LINK_FALLOFF  = 1.5;     // 连线随距离的衰减，越小远处的线也越看得见
+  var DRIFT_SPD     = 1.0;     // 簇内节点绕着簇心轻摆的速度倍率
+  var BREATH        = 0.85;    // 呼吸频率 rad/s —— 约 7 秒一个来回
+  var BREATH_AMP    = 0.38;    // 呼吸幅度：亮度在基准值上下浮动的幅度
+  var MAX_PULSE     = 14;      // 同屏最多几道信号
+
+  /* ---------- 取自站点调色板 ---------- */
+  var BRASS = '201,160,106';   // --brass 做旧黄铜（背景节点与连线的底色）
+  var TEAL  = '109,143,134';   // --teal  发暗青绿（少量穿插，避免整片一个颜色）
+  var CORE  = '255,246,228';   // 信号亮芯
+  var TAU   = Math.PI * 2;
+
+  var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  var W = 0, H = 0, DPR = 1, LINK = 200;
+  var nodes = [], hubs = [], pulses = [], labels = {};
+  var mouse = { x: -9999, y: -9999 };
+  var raf = 0, frame = 0, rt = 0, enabled = false;
+  var myIdx = -1;
+
+  function rnd(a, b){ return a + Math.random() * (b - a); }
+
+  Array.prototype.forEach.call(wrap.querySelectorAll('.ilabel'), function(el){
+    var k = el.getAttribute('data-k');
+    if (k) labels[k] = el;
+  });
+
+  /* ---------- 布点：背景自由节点 + 五个兴趣簇 ---------- */
+  function build(){
+    nodes = []; hubs = []; pulses = []; frame = 0;
+
+    /* 1) 背景：和全站那层神经背景同样的漂移逻辑 */
+    var n = Math.round((W * H) / NODE_PER_AREA);
+    n = Math.max(40, Math.min(140, n));
+    for (var i = 0; i < n; i++){
+      nodes.push({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: rnd(-0.14, 0.14), vy: rnd(-0.14, 0.14),
+        r: rnd(1.5, 2.9),
+        teal: Math.random() < 0.22,
+        free: true, hub: null, core: false
+      });
+    }
+
+    /* 2) 五个簇：成员绕簇心小幅摆动，不像自由节点那样线性漂走，簇才不会散 */
+    SPOTS.forEach(function(s, si){
+      var h = {
+        k: s.k, rgb: s.rgb, rx: s.rx, ry: s.ry,
+        x: W * s.rx, y: H * s.ry,
+        ph: si / SPOTS.length * TAU,    // 五个簇的呼吸各自错开相位
+        b: 0.5, hot: 0
+      };
+      hubs.push(h);
+      for (var m = 0; m <= HUB_MEMBERS; m++){
+        var core = (m === 0);
+        var ang  = core ? 0 : Math.random() * TAU;
+        var rad  = core ? 0 : rnd(HUB_R * 0.38, HUB_R);
+        nodes.push({
+          x: h.x, y: h.y,
+          free: false, hub: h, core: core,
+          ox: Math.cos(ang) * rad,
+          oy: Math.sin(ang) * rad * 0.82,      // 稍微压扁一点，更像自然长的
+          amp: core ? 0 : rnd(2.5, 7),
+          w1: rnd(0.22, 0.62), w2: rnd(0.22, 0.62),
+          p1: Math.random() * TAU, p2: Math.random() * TAU,
+          r:  core ? 4.0 : rnd(1.9, 3.2),
+          teal: false
+        });
+      }
+    });
+
+    /* —— 这里原本是「五个簇两两牵一条神经束 + 中继节点」，按需求删掉。
+         现在簇与簇之间只靠背景自由节点随机串起来，回到五个各自浮在网上的星座。 —— */
+
+    LINK = Math.min(Math.max(Math.min(W, H) * LINK_RATIO, 130), 235);
+  }
+
+  /* ---------- 标签：挂在簇心正下方 ----------
+     位置每次 resize 重算，并且做一次「避让」：右侧分页器和底部状态栏各占一条带，
+     窄屏时最右/最下的那个标签会压上去。这里先量出各自的占位，再把超出的坐标顶回来，
+     而不是靠改簇心位置去躲 —— 改簇心会让大屏的构图跟着变形。 */
+  function layout(){
+    for (var i = 0; i < hubs.length; i++){
+      hubs[i].x = W * hubs[i].rx;
+      hubs[i].y = H * hubs[i].ry;
+    }
+    /* 挂距收小（原 HUB_R+26≈110）：簇外缘成员最低探到约 0.82*HUB_R≈69px，
+       挂距取 1.05*HUB_R≈88，视觉间隙从约 40px 收到约 12px，文字贴近但不压线 */
+    var off = Math.round(HUB_R * 1.05);
+
+    /* 右侧分页器要先留出一个「最宽时」的占位再谈测量：
+       它选中那一档的横条会从 24px 变 52px，整块宽度在 106~134px 之间摆，
+       宽度过渡还有 .55s —— 直接量很可能量到过渡中的中间值。
+       所以先按最宽情况硬留 PG_RESERVE，再用当下实测值收紧。 */
+    var PG_RESERVE  = 190;
+    var pagerEl     = document.querySelector('.pager');
+    var safeRight   = W - PG_RESERVE;
+    if (pagerEl){
+      var pr = pagerEl.getBoundingClientRect();
+      if (pr.left > 0) safeRight = Math.min(safeRight, pr.left - 14);
+    }
+    var safeBottom = H - 84;
+
+    SPOTS.forEach(function(s){
+      var el = labels[s.k];
+      if (!el) return;
+      var half = (el.offsetWidth  || 60) / 2;
+      var hgt  = (el.offsetHeight || 44);
+
+      var cx = W * s.rx;
+      if (cx + half > safeRight) cx = safeRight - half;
+      if (cx - half < 24)        cx = half + 24;
+
+      var cy = H * s.ry + off;
+      if (cy + hgt > safeBottom) cy = safeBottom - hgt;
+
+      el.style.setProperty('--x', cx.toFixed(1) + 'px');
+      el.style.setProperty('--y', cy.toFixed(1) + 'px');
+      el.style.setProperty('--c', s.hex);
+    });
+  }
+
+  /* ---------- 随机放电 ---------- */
+  function spawnPulse(){
+    if (pulses.length >= MAX_PULSE || nodes.length < 2) return;
+    var ai = (Math.random() * nodes.length) | 0;
+    var a  = nodes[ai];
+    var best = -1, cnt = 0;
+    for (var i = 0; i < nodes.length; i++){
+      if (i === ai) continue;
+      var dx = nodes[i].x - a.x, dy = nodes[i].y - a.y;
+      if (dx * dx + dy * dy < LINK * LINK){        // 蓄水池抽样：等概率取一个邻居
+        cnt++;
+        if (Math.random() < 1 / cnt) best = i;
+      }
+    }
+    if (best < 0) return;
+    var b = nodes[best];
+    /* 信号有一端落在簇上，就染成那个簇的颜色，否则用黄铜底色 */
+    var owner = a.hub || b.hub;
+    pulses.push({ a: a, b: b, p: 0, sp: rnd(0.011, 0.021), rgb: owner ? owner.rgb : BRASS });
+  }
+
+  /* ---------- 每帧推进 ---------- */
+  function step(){
+    frame++;
+    var tSec   = frame / 60;
+    var tDrift = tSec * DRIFT_SPD;
+
+    for (var i = 0; i < nodes.length; i++){
+      var n = nodes[i];
+      if (n.free){
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < -20) n.x = W + 20; else if (n.x > W + 20) n.x = -20;
+        if (n.y < -20) n.y = H + 20; else if (n.y > H + 20) n.y = -20;
+      } else {
+        n.x = n.hub.x + n.ox + Math.sin(tDrift * n.w1 + n.p1) * n.amp;
+        n.y = n.hub.y + n.oy + Math.cos(tDrift * n.w2 + n.p2) * n.amp;
+      }
+    }
+
+    /* 呼吸：每个簇一条自己的正弦，相位已错开 */
+    for (var q = 0; q < hubs.length; q++){
+      hubs[q].b = 0.5 + 0.5 * Math.sin(tSec * BREATH + hubs[q].ph);
+    }
+
+    /* 鼠标激发：只点亮离光标最近的那个簇，缓慢过渡避免跳变 */
+    var best = -1, bd = HOVER_R * HOVER_R;
+    for (var s = 0; s < hubs.length; s++){
+      var dx = mouse.x - hubs[s].x, dy = mouse.y - hubs[s].y;
+      var d2 = dx * dx + dy * dy;
+      if (d2 < bd){ bd = d2; best = s; }
+    }
+    for (var r = 0; r < hubs.length; r++){
+      var h  = hubs[r];
+      h.hot += ((r === best ? 1 : 0) - h.hot) * 0.085;
+      var lab = labels[h.k];
+      if (lab) lab.classList.toggle('is-hot', h.hot > 0.42);
+    }
+
+    if (frame % 26 === 0 || Math.random() < 0.02) spawnPulse();
+    for (var k = pulses.length - 1; k >= 0; k--){
+      var pu = pulses[k];
+      pu.p += pu.sp;
+      var ax = pu.b.x - pu.a.x, ay = pu.b.y - pu.a.y;
+      if (pu.p > 1 || ax * ax + ay * ay > LINK * LINK * 1.7) pulses.splice(k, 1);
+    }
+  }
+
+  /* ---------- 绘制 ---------- */
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+    var i, j;
+
+    /* 1) 背景节点之间的连线：沿用黄铜色，让人一眼认出是同一个背景的延续 */
+    ctx.lineWidth   = 1;
+    ctx.strokeStyle = 'rgb(' + BRASS + ')';
+    for (i = 0; i < nodes.length; i++){
+      var a = nodes[i];
+      if (!a.free) continue;
+      for (j = i + 1; j < nodes.length; j++){
+        var b  = nodes[j];
+        if (!b.free) continue;
+        var d2 = (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
+        if (d2 > LINK * LINK) continue;
+        var al = Math.pow(1 - Math.sqrt(d2) / LINK, LINK_FALLOFF) * 0.85 * INTENSITY;
+        if (al < 0.004) continue;
+        ctx.globalAlpha = al > 1 ? 1 : al;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+    }
+
+    /* 2) 簇的连线：按簇分批，每帧只设一次 strokeStyle */
+    for (var h = 0; h < hubs.length; h++){
+      var hub   = hubs[h];
+      var lum   = 1 - BREATH_AMP / 2 + hub.b * BREATH_AMP;   // 呼吸：整簇明暗轻微起伏
+      var boost = lum * (1 + hub.hot * 1.5) * INTENSITY;
+      ctx.strokeStyle = 'rgb(' + hub.rgb + ')';
+      for (i = 0; i < nodes.length; i++){
+        var na = nodes[i];
+        if (na.free || na.hub !== hub) continue;
+        for (j = 0; j < nodes.length; j++){
+          var nb = nodes[j];
+          if (nb === na) continue;
+          var e2 = (nb.x - na.x) * (nb.x - na.x) + (nb.y - na.y) * (nb.y - na.y);
+          if (e2 > LINK * LINK) continue;
+          var ea = Math.pow(1 - Math.sqrt(e2) / LINK, LINK_FALLOFF) * 0.9 * boost;
+          if (ea < 0.004) continue;
+          ctx.globalAlpha = ea > 1 ? 1 : ea;
+          ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y); ctx.stroke();
+        }
+      }
+    }
+
+    /* 3) 背景节点：黄铜为主，少量青绿做层次，每种颜色一批 */
+    ctx.fillStyle = 'rgb(' + BRASS + ')';
+    for (i = 0; i < nodes.length; i++){
+      var nf = nodes[i];
+      if (!nf.free || nf.teal) continue;
+      ctx.globalAlpha = 0.34 * INTENSITY;
+      ctx.beginPath(); ctx.arc(nf.x, nf.y, nf.r, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = 'rgb(' + TEAL + ')';
+    for (i = 0; i < nodes.length; i++){
+      var nt = nodes[i];
+      if (!nt.free || !nt.teal) continue;
+      ctx.globalAlpha = 0.26 * INTENSITY;
+      ctx.beginPath(); ctx.arc(nt.x, nt.y, nt.r, 0, TAU); ctx.fill();
+    }
+
+    /* 4) 簇：成员小点 + 簇心光晕 + 亮芯 */
+    for (var q = 0; q < hubs.length; q++){
+      var hu   = hubs[q];
+      var feed = 0.62 + 0.38 * hu.b + hu.hot * 0.6;
+      ctx.fillStyle = 'rgb(' + hu.rgb + ')';
+      for (i = 0; i < nodes.length; i++){
+        var nm = nodes[i];
+        if (nm.free || nm.hub !== hu || nm.core) continue;
+        ctx.globalAlpha = Math.min(0.6, 0.3 * feed * INTENSITY);
+        ctx.beginPath(); ctx.arc(nm.x, nm.y, nm.r, 0, TAU); ctx.fill();
+      }
+      /* 簇心光晕：原来是实心圆（边缘一刀切、很小），改成径向渐变 ——
+         中心浓、外圈渐隐到全透明，边缘没有硬边；半径也放大到 HUB_GLOW。
+         globalAlpha 必须置回 1，透明度交给渐变自身的 rgba，否则会叠乘两次。 */
+      var gr = HUB_GLOW + hu.b * 11 + hu.hot * 26;
+      var ga = Math.min(0.58, (0.21 + 0.10 * hu.b + 0.26 * hu.hot) * INTENSITY);
+      if (gr > 1 && ga > 0.003){
+        var glow = ctx.createRadialGradient(hu.x, hu.y, 0, hu.x, hu.y, gr);
+        glow.addColorStop(0,    'rgba(' + hu.rgb + ',' +  ga.toFixed(3)        + ')');
+        glow.addColorStop(0.22, 'rgba(' + hu.rgb + ',' + (ga * 0.64).toFixed(3) + ')');
+        glow.addColorStop(0.48, 'rgba(' + hu.rgb + ',' + (ga * 0.29).toFixed(3) + ')');
+        glow.addColorStop(0.74, 'rgba(' + hu.rgb + ',' + (ga * 0.085).toFixed(3) + ')');
+        glow.addColorStop(1,    'rgba(' + hu.rgb + ',0)');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle  = glow;
+        ctx.beginPath(); ctx.arc(hu.x, hu.y, gr, 0, TAU); ctx.fill();
+        ctx.fillStyle  = 'rgb(' + hu.rgb + ')';   // 画完光晕把颜色还给下面的亮芯
+      }
+      ctx.globalAlpha = Math.min(0.92, (0.55 + 0.20 * hu.b + 0.28 * hu.hot) * INTENSITY);
+      ctx.beginPath(); ctx.arc(hu.x, hu.y, 4.0 + hu.hot * 1.6, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgb(' + CORE + ')';
+      ctx.globalAlpha = Math.min(0.9, (0.32 + 0.24 * hu.b + 0.3 * hu.hot) * INTENSITY);
+      ctx.beginPath(); ctx.arc(hu.x, hu.y, 1.8 + hu.hot * 0.7, 0, TAU); ctx.fill();
+    }
+
+    /* 5) 信号脉冲：光晕 + 亮芯，飞到两端时自然淡出 */
+    for (var p = 0; p < pulses.length; p++){
+      var pu   = pulses[p];
+      var fade = Math.sin(pu.p * Math.PI) * INTENSITY;
+      if (fade <= 0) continue;
+      var px = pu.a.x + (pu.b.x - pu.a.x) * pu.p;
+      var py = pu.a.y + (pu.b.y - pu.a.y) * pu.p;
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(px, py, 6, 0, TAU);
+      ctx.fillStyle = 'rgba(' + pu.rgb + ',' + (0.14 * fade).toFixed(3) + ')';
+      ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, 1.8, 0, TAU);
+      ctx.fillStyle = 'rgba(' + CORE + ',' + (0.78 * fade).toFixed(3) + ')';
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function loop(){
+    step();
+    draw();
+    raf = window.requestAnimationFrame(loop);
+  }
+  function stop(){
+    if (raf) window.cancelAnimationFrame(raf);
+    raf = 0;
+  }
+  function start(){
+    stop();
+    if (reduceMQ.matches){ step(); draw(); return; }   // 尊重「减弱动态效果」：只画一帧
+    raf = window.requestAnimationFrame(loop);
+  }
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    cv.width  = Math.round(W * DPR);
+    cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    build();
+    layout();
+    if (reduceMQ.matches) draw();
+  }
+  function onResize(){
+    window.clearTimeout(rt);
+    rt = window.setTimeout(resize, 160);
+  }
+
+  /* ---------- 鼠标 / 指针 ---------- */
+  function clearMouse(){ mouse.x = -9999; mouse.y = -9999; }
+  window.addEventListener('pointermove', function(e){
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  }, { passive: true });
+  window.addEventListener('pointerleave', clearMouse, { passive: true });
+  window.addEventListener('blur', clearMouse);
+
+  /* ---------- 切到后台就停，省电 ---------- */
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) stop(); else if (enabled) start();
+  });
+  if (reduceMQ.addEventListener) reduceMQ.addEventListener('change', function(){
+    if (enabled) start();
+  });
+
+  /* ---------- 只在这一页 active 时跑 ---------- */
+  (function(){
+    var all = document.querySelectorAll('.page');
+    for (var i = 0; i < all.length; i++){
+      if (all[i] === page){ myIdx = i; break; }
+    }
+  })();
+  function applyPage(idx){
+    enabled = (idx === myIdx);
+    if (enabled){
+      /* 分页器的宽度跟着当前页变（选中档的横条更长），resize 之外还得在每次
+         翻到本页时重量一遍标签位置；等宽度过渡跑完再补一次，免得量到中间值。 */
+      layout();
+      window.setTimeout(function(){ if (enabled) layout(); }, 700);
+      start();
+    }
+    else { stop(); if (W && H) ctx.clearRect(0, 0, W, H); }
+  }
+  window.addEventListener('page:change', function(e){
+    var i = (e && e.detail && typeof e.detail.index === 'number') ? e.detail.index : 0;
+    applyPage(i);
+  });
+
+  resize();
+  window.addEventListener('resize', onResize, { passive: true });
+
+  var idx0 = 0;
+  var pgs  = document.querySelectorAll('.page');
+  for (var pi = 0; pi < pgs.length; pi++){
+    if (pgs[pi].classList.contains('is-active')){ idx0 = pi; break; }
+  }
+  applyPage(idx0);
+
+  /* ---------- 对外只开一个口子 ----------
+     音乐板块要判断「点的是不是音乐那一簇」，而簇心坐标每帧都在被 layout()
+     重算（resize 与翻页时还会变），所以不能让外面自己存一份坐标。
+     这里现取现给：k 传兴趣代号，返回该簇此刻的中心与半径（canvas 的 CSS 像素）。
+     用法见下面音乐面板脚本里的点击命中判定。 */
+  window.__zyInterestHub = function(k){
+    for (var i = 0; i < hubs.length; i++){
+      if (hubs[i].k === k) return { x: hubs[i].x, y: hubs[i].y, r: HUB_R };
+    }
+    return null;
+  };
+})();
+</script>
+
 <script>
 /* 兴趣爱好翻转卡片：触屏设备上点按翻转（悬停由 CSS 负责） */
 (function(){
@@ -3619,8 +4885,1402 @@ function makeEnvMap(renderer){
 
   if (isAdminEntry()) openAdm();
 
+  /* 唱片机标题下的「分享你的宝藏歌曲」用的就是这套弹窗。
+     本块是 IIFE，外面拿不到 openShare，所以在这里挂一个全局入口。 */
+  window.openShareMusic = function(){ openShare('music'); };
+
   /* 首次进入页面就提示一下表单是否可用 */
   if (!cloud && elLog) log('CLOUD OFFLINE — 提交通道未就绪', 'is-err');
+})();
+</script>
+
+<script>
+/* ============================================================
+   音乐板块 —— 黑胶唱机 + 唱片箱
+   左侧 2/3 唱机，右侧 1/3 唱片箱（箱顶三个分类）。
+   从「音乐」簇进入：点簇、点标签都可以；Esc 或右上角关闭。
+
+   音源：2026-09-21 接入网络音源，三级优先 —— 整首 > 官方 30 秒片段 > 纯动画。
+   整首不打点、播完为止；片段落到 30 秒自动收针；都没有的曲目只转盘不走音。
+   具体挂在哪条、为什么，见下面清单里的 src / pv 字段注释。
+
+   唱机内部几何按 440×300 的基准写死，整体由 fit() 算一个 scale 缩放到可用空间，
+   所以改内部结构不用管响应式。基准里的关键坐标：
+     转盘圆心 (150,170) 半径 100 ；唱片半径 92 ；摇臂轴心 (389,39) 臂长 206。
+     唱针两个位置：待机 121deg（离开唱片），播放 151.2deg（落在唱片外圈）。
+   ============================================================ */
+(function(){
+  'use strict';
+
+  /* ---------- 曲目清单（2026-09-21 按《歌单.md》录入并六次增补，现 62 首：22 / 16 / 24） ----------
+     每条字段：
+        t      曲名 —— 按官方写法（含官方标点如 "Goodbye, Apathy" 里的逗号）。
+               已去掉 "feat. X / [Radio Edit] / (Stripped) / 影视推广曲" 这类版本说明后缀；
+               只有用户点名要 Live 版的「玫瑰少年 (Live)」「如烟 (Live)」保留 (Live)。
+        a      艺人（写法规范化过大小写）
+        cover  专辑封面文件名 → 去 assets/covers/ 取真图
+               这 63 张是 2026-09-21 从 iTunes / 网易云抓的官方专辑封面，已压到 500px
+               留空或加载失败 → 自动退回程序按曲名生成的抽象封面
+        src    整首音源。写文件名 → 去 assets/music/ 取；以 http 开头 → 网络直链直接播。
+               整首播放，不自动停，进度条显示真实总时长（会超过一分钟，fmt() 已按分:秒处理）。
+        pv     官方 30 秒试听片段（iTunes 的 previewUrl）。只在没有 src 时生效，播 30 秒收针。
+        ext    src / pv 都拿不到时才用：[[平台名, 跳转地址], ...]，渲染成转盘下方那排按钮。
+               站内没有音源的曲目**不放空动画**，只亮这几个按钮（Apple 没有的就不给 Apple）。
+       （src / pv 都为空 → 走 ext；连 ext 也没有 → 纯动画兜底，界面标「暂无音源」）
+
+     ⚠️ 音源现状（2026-09-21，第八次改动后）：整首 9 首（**全部本地同源**）/ 30 秒片段 51 首 / 无音源 2 首。
+        9 首整首 = 迷航、合唱团阴郁的夜晚、芸芸、一般的一天、借给我一盒火柴、
+        Il aurait suffi、触不可及、资深庸才、Young Blood，全部存在 assets/music/ 下。
+        网易云外链对欧美主流曲目基本是 302→/404（OneRepublic、Linkin Park 那批整批拿不到），
+        所以「整首优先」这条策略在欧美曲目上覆盖率上不去，主力仍是 Apple 的 51 条 30 秒片段。
+        ⚠️ 30 秒是 Apple previewUrl 的**硬限制**，改不动；想要更长只能换整首源（见上）。
+     ⚠️⚠️ 为什么整首全部改成本地同源（2026-09-21 第八次改动，重要，别再走回头路）：
+        现象：用户实测「网易云的整首全都没声音」，Apple 的 30 秒片段却正常。
+        根因：网易云 outer/url 的 302 目标是 **http://** 的 m7xx/m8xx CDN，
+              而且链接是**每次请求现场签名**的 —— 路径里带 20260921131911 这种时间戳、
+              查询串里带一次性 vuutv= 令牌。既不可能预先解析后硬编码，也保不住时效。
+              站点跑在 https 上，Safari / 微信内置浏览器**不会**自动升级混合内容，直接拦掉；
+              只有 Chrome 会悄悄升级 —— 所以「我这边 curl 206 / Chromium 能播」和
+              「用户那边一片静音」可以同时成立。
+        ✅ 解法：整首下载到站点同源目录 assets/music/（9 首 / 32.9 MB），src 写文件名。
+           同源 https 文件没有混合内容、没有防盗链、没有时效问题。
+        ⚠️ 代价：assets/music/ 会随站点进仓库（约 33 MB，GitHub Pages 无压力）。
+           推送时别只推 index.html —— 漏推这个目录，这 9 首会集体静音并退到 ext 跳转按钮。
+        ⚠️ 教训：判断「某环境能不能播」必须用那个环境的真实浏览器复现，
+           服务端 curl 出 206 完全不能证明浏览器里能出声。
+           同类坑之前踩过一次（微信 UA 被 403），这次是混合内容，本质一样。
+     ⚠️ 两条外链的脾气（都实测过，改动前先看这段）：
+        · 网易云 outer/url：302 现场签名 → http CDN，**浏览器里会踩混合内容**（见上）。
+          版权受限曲目还会 302 到 /404，靠 onAudioError 降级。
+        · Apple previewUrl（audio-ssl.itunes.apple.com）：无防盗链、无 Referer 校验、
+          Cache-Control 一年，但 **audio-ssl 在国内访问不稳**，用户那边会随机「音频没加载出来」。
+          → 2026-09-21 已把 **51 首远程片段全部下载进 assets/music/*-30s.m4a（约 50 MB）**，
+            pv 直接写文件名（srcOf() 里 pv 与 src 用同一套「http 前缀=远程、否则=本地」规则）。
+            从此 30 秒试听不再依赖 Apple CDN。以后新增曲目优先走本地片段，别再挂远程直链。
+     ⚠️ iTunes 搜索接口限流很凶：这次批量抓 previewUrl 时被 429 挡过，风控了十几分钟。
+        以后要重抓请慢速分批（间隔 ≥3 秒），别一口气打 62 首。
+        · 2026-09-21 又踩一次，而且这次更狠：/search 端点直接 **IP 级 403**
+          （换 UA、换区域、走代理、真直连统统 403），可 /lookup 端点完全正常。
+          绕法：用 WebFetch 工具读 https://itunes.apple.com/search?...&entity=song
+          —— 工具侧的网络出口没被牵连，能拿到完整 JSON；或先拿 albumId 再 /lookup?id=<albumId>&entity=song。
+        · 另外 Deezer / Songwhip / Odesli / 公共 CORS 代理这次全都不可用（000 / 401 / 403 / 520），别白试。
+        · ⚠️ 环境变量里全局挂了 HTTP(S)_PROXY —— 命令里的"直连"其实走了代理。
+          排查网络问题要显式 env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy 才是真直连。
+     ⚠️ Young Blood = **专辑原版 4:06**（《Passive Me, Aggressive You》），2026-09-21 最终定版。
+        这一条前后改了四轮：remix Radio Edit 3:31 → remix 6:37 → 专辑原版。
+        最后的锚点是用户发的 macOS Music 截图：曲名 Young Blood、专辑 Passive Me, Aggressive You、
+        总时长约 4:05 —— 即专辑原版，所以「不要 remix」这轮是最终结论。
+        · 封面：**保留粉色那张**（64-young-blood-remix.jpg，Apple 单曲图 602537077854.jpg）。
+          用户两次明确说「封面就要粉色这种」，封面不跟着版本走。
+        · 音源：本地 assets/music/young-blood.mp3（网易云 19538464 下载，4:06）。
+        · ext 兜底：网易云 song?id=19538464 / QQ 音乐 002o7gtj2sZcHP。
+        · ⚠️ Apple 美国区**没有**专辑原版（13 条搜索结果只有各版 remix + Stripped +
+          Carrie 电影版），所以这条没有 pv，别再浪费时间查。
+        · 备查：3:31 Radio Edit（网易云 27065912 / Apple 1873297407）、6:37 完整 remix
+          （网易云 1307286525 / Apple 1873297409）、5:03（19689176）、5:33（27005330）。
+        · 教训：QQ 音乐搜索走 u.y.qq.com/cgi-bin/musicu.fcg（GET/POST 都行，
+          module=music.search.SearchCgiService, method=DoSearchForQQMusicDesktop）；
+          旧的 c.y.qq.com/soso/fcgi-bin/client_search_cp 现在返回 0 结果且被 JSONP 包住。
+     ⚠️ 只剩 **La Plena (W Sound 05)** 一首**站内拿不到音源**（Apple 只有 ETHΔNN / Andie Bernal
+        的翻唱版，没有 W Sound 原版；网易云外链 302 → /404）。它不用 src/pv，
+        而是用 ext 字段挂官方平台跳转按钮，播放器对 mode='none' 的曲目
+        **不再空跑进度动画**，只亮出跳转按钮。
+     ✅ DtMF 已于 2026-09-21 解决：Apple 专辑《DeBÍ TiRAR MáS FOToS》(collectionId 1787022393)
+        第 16 轨就是 DtMF（3:57，trackId 1787023936）。之前搜「Bad Bunny DtMF」只出翻唱，
+        **正解是先拿专辑 id 再 /lookup?id=<albumId>&entity=song 逐轨翻**。
+     ⚠️ 2026-09-21 第七次改动新增的 6 条音源（原先 8 首静音 → 只剩 2 首）：
+        · 整首（网易云外链）：Il aurait suffi(428649328) / 触不可及(2648888545) / 资深庸才(1492318633)
+        · Apple 30 秒片段：化身孤岛的鲸(trackId 1545553367) / 玫瑰少年 Live(1783982549) /
+          如烟 Live(6779095230) —— 周深在 Apple 美区的艺名是 **Zhou Shen**，
+          搜「周深」也能命中，别以为美区没有他。
+        · ⚠️ 网易云外链会 302 到 **http** 的 m7xx/m8xx CDN；站点跑在 https 上，
+          靠浏览器把混合内容自动升级成 https 才放得出来（实测这些 CDN 都支持 https）。
+     ⚠️ 两处是我的判断，用户可随时推翻：
+        ① Purpose        —— 原歌单没写艺人，按上下文（紧接着就是 YUKON—justin bieber）补的
+        ② 借给我一盒火柴  —— 原歌单没写艺人，检索结果是周深《埃博拉前线》主题曲
+     ⚠️ Dear Boy 用的是《True: Avicii By Avicii》(2014) 重混版的封面（18 号图，紫色那张）；
+        曲名没加版本后缀，若要在界面上标出来，改成 'Dear Boy (Avicii By Avicii)' 即可。
+     ⚠️ 几处曲名我按官方写法订正过（用户原稿 -> 实际）：
+        II aurait suffit -> 'Il aurait suffi'（法语音乐剧《摇滚红与黑》插曲，i 结尾不是 it）
+        La Plena         -> 'La Plena (W Sound 05)'（2025 年 W Sound 系列第 5 弹，同名歌很多，带上编号才不歧义）
+        如烟              -> '如烟 (Live)'（用户点名要 Live 版，封面是网易云的 Live 版）
+     ⚠️ 2026-09-21 第三次增补的 4 首（都插在「我超爱」栏）：
+        Higher 之后 → Rush over Me（52）/ Afterlife（53）/ Freeze（54）
+        Firestone 之后 → Riptide（55）
+        · Rush over Me 是七狮 + ILLENIUM + Said The Sky + HALIENE 四人合作，
+          艺人栏按 Apple Music 的官方署名四个人都写了，封套下那行 9px 等宽字放不下会被省略号截断。
+        · ILLENIUM 官方写法是全大写（早年才写 Illenium），别改回小写。
+        · Freeze 用的是 2022 年单曲封面（星空那张），不是专辑《Thrill Of The Chase》的封面 ——
+          和上面 Higher 用单曲封面保持一致；想换成专辑图随时说。
+     ⚠️ 2026-09-21 第四次增补（同一天，用户随后又提的）：
+        · Higher 与 Worlds Apart 对调 —— 现在是 Higher 在前、「我超爱」栏第 1、2 首。
+          注意只动了这两条，第三次增补进来的 Rush over Me / Afterlife / Freeze 三首
+          仍在原地（Worlds Apart 之后）没跟着走。
+        · 「我巨爱」栏：芸芸 与 合唱团，阴郁的夜晚 对调 —— 现在 合唱团 在前。
+        · 一般的一天 之后新增 化身孤岛的鲸（56，周深）。
+          曲名订正：用户写的是「化身孤岛的蓝鲸」，官方曲名没有「蓝」字。
+          用的是 2020 年单曲《化身孤岛的鲸》的封面（网易云，蓝色水下那张）；
+          另一版封面是专辑《须臾》里的二次元插画，不是这首歌的官方单曲图，没用它。
+     ⚠️ DtMF / La Plena 这两首在 Apple Music 美国区搜不到原版（只有满屏翻唱），
+        封面走的是网易云，别再用 iTunes 那套脚本重抓这两首。
+     ⚠️ 2026-09-21 第五次增补（+6 首，其中两首的艺人是用户只给了名字、我去查证补全的）：
+        · 「我最爱」里 Valentine's Day（Linkin Park）**被替换成** Iridescent（57，同是 Linkin Park）。
+          封面用正牌专辑《A Thousand Suns》(2010) 的干净版。
+          ⚠️ 别用 093624949312.jpg 那张 —— 那是 explicit 版封面，左下角压着一个
+          PARENTAL ADVISORY 黑标；干净的对应 093624961970.jpg。
+          （换下来的 40-valentines-day.jpg 已无人引用，删不删待用户拍板。）
+        · 「我最爱」末尾 +2：Heart Hope（58，Oh Wonder 2015 同名首专；
+          别拿 2025 年《Oh Wonder (10 Years On)》重制版，那个曲名带后缀）、
+          All My Life（59，艺人 **WILD，全大写**，2017 单曲 —— 用户原话只说「wild 的」，
+          全网同名歌一大堆，只有 WILD 这条对得上）。
+        · 「我超爱」末尾 +2：You Were Loved（60，**Gryffin & OneRepublic** 2022 单曲；
+          另有专辑《Alive》版封面可换，这里跟 Higher / Freeze 一致用单曲图）、
+          S.T.O.P（61，**David Guetta feat. Ryan Tedder**，出自《Listen》2014；
+          Apple 曲名写作 'S.T.O.P (feat. Ryan Tedder)'，本站曲名按用户写法留 'S.T.O.P'）。
+        · 「我巨爱」YUKON 之后 +2：RUNNING（62，NF《HOPE》2023）、
+          FEAR（63，NF《FEAR - EP》2025）。NF 这两首官方曲名就是全大写，别改成小写。
+        · 这 6 首全部拿到 Apple 30 秒片段（previewUrl 已逐个实测），片段数 43 → 49。
+     ------------------------------------------------------------ */
+  var CATS = [
+    { name:'我最爱', list:[
+      { t:'Goodbye, Apathy',      a:'OneRepublic',         cover:'01-goodbye-apathy.jpg',       src:'', pv:'01-goodbye-apathy-30s.m4a' },
+      { t:'Waking Up',            a:'OneRepublic',         cover:'02-waking-up.jpg',            src:'', pv:'02-waking-up-30s.m4a' },
+      { t:'Au Revoir',            a:'OneRepublic',         cover:'03-au-revoir.jpg',            src:'', pv:'03-au-revoir-30s.m4a' },
+      { t:'I Lived',              a:'OneRepublic',         cover:'04-i-lived.jpg',              src:'', pv:'04-i-lived-30s.m4a' },
+      { t:'Future Looks Good',    a:'OneRepublic',         cover:'05-future-looks-good.jpg',    src:'', pv:'05-future-looks-good-30s.m4a' },
+      { t:'Someday',              a:'OneRepublic',         cover:'06-someday.jpg',              src:'', pv:'06-someday-30s.m4a' },
+      { t:'Hands Held High',      a:'Linkin Park',         cover:'07-hands-held-high.jpg',      src:'', pv:'07-hands-held-high-30s.m4a' },
+      { t:'One More Light',       a:'Linkin Park',         cover:'08-one-more-light.jpg',       src:'', pv:'08-one-more-light-30s.m4a' },
+      { t:'Final Masquerade',     a:'Linkin Park',         cover:'09-final-masquerade.jpg',     src:'', pv:'09-final-masquerade-30s.m4a' },
+      { t:'Iridescent',           a:'Linkin Park',         cover:'57-iridescent.jpg',           src:'', pv:'57-iridescent-30s.m4a' },
+      { t:'Levitate',             a:'Imagine Dragons',     cover:'10-levitate.jpg',             src:'', pv:'10-levitate-30s.m4a' },
+      { t:'Wrecked',              a:'Imagine Dragons',     cover:'41-wrecked.jpg',              src:'', pv:'41-wrecked-30s.m4a' },
+      { t:'Yellow',               a:'Coldplay',            cover:'42-yellow.jpg',               src:'', pv:'42-yellow-30s.m4a' },
+      { t:'My Heart Is Open',     a:'Maroon 5',            cover:'11-my-heart-is-open.jpg',     src:'', pv:'11-my-heart-is-open-30s.m4a' },
+      { t:'Young Blood', a:'The Naked and Famous', cover:'64-young-blood-remix.jpg', src:'young-blood.mp3', ext:[['网易云','https://music.163.com/song?id=19538464'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/002o7gtj2sZcHP']] },
+      { t:'Some Nights',          a:'fun.',                cover:'13-some-nights.jpg',          src:'', pv:'13-some-nights-30s.m4a' },
+      { t:'If You Ever Come Back', a:'The Script',          cover:'14-if-you-ever-come-back.jpg', src:'', pv:'14-if-you-ever-come-back-30s.m4a' },
+      { t:'Youngblood',           a:'5 Seconds of Summer', cover:'15-youngblood.jpg',           src:'', pv:'15-youngblood-30s.m4a' },
+      { t:'Pieces',               a:'Sum 41',              cover:'16-pieces.jpg',               src:'', pv:'16-pieces-30s.m4a' },
+      { t:'All Time Low',         a:'The Wanted',          cover:'17-all-time-low.jpg',         src:'', pv:'17-all-time-low-30s.m4a' },
+      { t:'Heart Hope',           a:'Oh Wonder',           cover:'58-heart-hope.jpg',           src:'', pv:'58-heart-hope-30s.m4a' },
+      { t:'All My Life',          a:'WILD',                cover:'59-all-my-life.jpg',          src:'', pv:'59-all-my-life-30s.m4a' }
+    ]},
+    { name:'我超爱', list:[
+      { t:'Dear Boy',              a:'Avicii',                                       cover:'18-dear-boy.jpg',            src:'', pv:'18-dear-boy-30s.m4a' },
+      { t:'Wake Me Up',            a:'Avicii',                                       cover:'43-wake-me-up.jpg',          src:'', pv:'43-wake-me-up-30s.m4a' },
+      { t:'Language',              a:'Porter Robinson',                              cover:'19-language.jpg',            src:'', pv:'19-language-30s.m4a' },
+      { t:'High on Life',          a:'Martin Garrix',                                cover:'20-high-on-life.jpg',        src:'', pv:'20-high-on-life-30s.m4a' },
+      { t:'Higher',                a:'Tobu',                                         cover:'22-higher.jpg',              src:'', pv:'22-higher-30s.m4a' },
+      { t:'Worlds Apart',          a:'Seven Lions',                                  cover:'21-worlds-apart.jpg',        src:'', pv:'21-worlds-apart-30s.m4a' },
+      { t:'Rush Over Me',          a:'Seven Lions, ILLENIUM, Said The Sky & HALIENE', cover:'52-rush-over-me.jpg',        src:'', pv:'52-rush-over-me-30s.m4a' },
+      { t:'Afterlife',             a:'ILLENIUM',                                     cover:'53-afterlife.jpg',           src:'', pv:'53-afterlife-30s.m4a' },
+      { t:'Freeze',                a:'Kygo',                                         cover:'54-freeze.jpg',              src:'', pv:'54-freeze-30s.m4a' },
+      { t:'Firestone',             a:'Kygo',                                         cover:'23-firestone.jpg',           src:'', pv:'23-firestone-30s.m4a' },
+      { t:'Riptide',               a:'The Chainsmokers',                             cover:'55-riptide.jpg',             src:'', pv:'55-riptide-30s.m4a' },
+      { t:'All We Know',           a:'The Chainsmokers',                             cover:'24-all-we-know.jpg',         src:'', pv:'24-all-we-know-30s.m4a' },
+      { t:'Crossroad',             a:'Au5',                                          cover:'25-crossroad.jpg',           src:'', pv:'25-crossroad-30s.m4a' },
+      { t:'Calling (Lose My Mind)', a:'Alesso',                                       cover:'26-calling-lose-my-mind.jpg', src:'', pv:'26-calling-lose-my-mind-30s.m4a' },
+      { t:'You Were Loved',       a:'Gryffin & OneRepublic',                           cover:'60-you-were-loved.jpg',      src:'', pv:'60-you-were-loved-30s.m4a' },
+      { t:'S.T.O.P',              a:'David Guetta feat. Ryan Tedder',                 cover:'61-stop.jpg',                src:'', pv:'61-stop-30s.m4a' }
+    ]},
+    { name:'我巨爱', list:[
+      { t:'Purpose',              a:'Justin Bieber',                 cover:'27-purpose.jpg',               src:'', pv:'27-purpose-30s.m4a' },
+      { t:'YUKON',                a:'Justin Bieber',                 cover:'28-yukon.jpg',                 src:'', pv:'28-yukon-30s.m4a' },
+      { t:'RUNNING',              a:'NF',                            cover:'62-running.jpg',               src:'', pv:'62-running-30s.m4a' },
+      { t:'FEAR',                 a:'NF',                            cover:'63-fear.jpg',                  src:'', pv:'63-fear-30s.m4a' },
+      { t:'Good Old Days',        a:'Macklemore',                    cover:'29-good-old-days.jpg',         src:'', pv:'29-good-old-days-30s.m4a' },
+      { t:'BLUE',                 a:'Troye Sivan',                   cover:'30-blue.jpg',                  src:'', pv:'30-blue-30s.m4a' },
+      { t:'Family Business',      a:'Ye',                            cover:'31-family-business.jpg',       src:'', pv:'31-family-business-30s.m4a' },
+      { t:'Violent Crimes',       a:'Ye',                            cover:'44-violent-crimes.jpg',        src:'', pv:'44-violent-crimes-30s.m4a' },
+      { t:'DtMF',                 a:'Bad Bunny',                     cover:'45-dtmf.jpg',                  src:'', pv:'45-dtmf-30s.m4a', ext:[['网易云','https://music.163.com/song?id=2663295776'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/003ySxXF17QU5T']] },
+      { t:'La Plena (W Sound 05)', a:'W Sound/Beéle/Ovy On the Drums', cover:'46-la-plena.jpg',              src:'', ext:[['网易云','https://music.163.com/song?id=2676879507'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/001FKudf0b2ZKX']] },
+      { t:'Rewrite the Stars',    a:'Zac Efron & Zendaya',           cover:'47-rewrite-the-stars.jpg',     src:'', pv:'47-rewrite-the-stars-30s.m4a' },
+      { t:'You Will Be Found',    a:'Ben Platt',                     cover:'48-you-will-be-found.jpg',     src:'', pv:'48-you-will-be-found-30s.m4a' },
+      { t:'Wait for It',          a:'Leslie Odom, Jr.',              cover:'49-wait-for-it.jpg',           src:'', pv:'49-wait-for-it-30s.m4a' },
+      { t:'Il aurait suffi',      a:'Côme, Julie Fournier & Haylen', cover:'50-il-aurait-suffi.jpg',       src:'il-aurait-suffi.mp3', ext:[['网易云','https://music.163.com/song?id=428649328'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/000pglYE3t2Ono']] },
+      { t:'迷航',                   a:'发光曲线',                          cover:'51-mihang.jpg',                src:'mi-hang.mp3', ext:[['网易云','https://music.163.com/song?id=27785104'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/000s2F8t0FVUhi']] },
+      { t:'合唱团，阴郁的夜晚',            a:'v是兔子wishtoday',                 cover:'33.jpg',                       src:'he-chang-tuan.mp3', ext:[['网易云','https://music.163.com/song?id=2660977445'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/001a7Zkw4DugXb']] },
+      { t:'芸芸',                   a:'吴垚滔',                           cover:'32.jpg',                       src:'yun-yun.mp3', ext:[['网易云','https://music.163.com/song?id=2747524908'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/002bAXad2HwFmt']] },
+      { t:'一般的一天',                a:'wiz_H张子豪',                      cover:'34.jpg',                       src:'yi-ban-de-yi-tian.mp3', ext:[['网易云','https://music.163.com/song?id=2054300084'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/001R2kln4OiYEk']] },
+      { t:'化身孤岛的鲸',               a:'周深',                            cover:'56-huanshen-gudao-de-jing.jpg', src:'', pv:'56-huanshen-gudao-de-jing-30s.m4a' },
+      { t:'借给我一盒火柴',              a:'周深',                            cover:'35.jpg',                       src:'huo-chai.mp3', ext:[['网易云','https://music.163.com/song?id=2711662982'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/003GVYJM0g1xXM']] },
+      { t:'触不可及',                 a:'周深',                            cover:'36.jpg',                       src:'chu-bu-ke-ji.mp3', ext:[['网易云','https://music.163.com/song?id=2648888545'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/002EFRnf3ekI9S']] },
+      { t:'资深庸才',                 a:'周深/王子zione',                    cover:'37.jpg',                       src:'zi-shen-yong-cai.mp3', ext:[['网易云','https://music.163.com/song?id=1492318633'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/001JUXdc02amw5']] },
+      { t:'玫瑰少年 (Live)',          a:'周深/GAI周延',                      cover:'38-live.jpg',                  src:'', pv:'38-live-30s.m4a' },
+      { t:'如烟 (Live)',            a:'周深/五月天',                        cover:'39.jpg',                       src:'', pv:'39-30s.m4a' }
+    ]}
+  
+  ];
+
+  var deck    = document.getElementById('deck');
+  if (!deck) return;
+  var slot    = document.getElementById('ttSlot');
+  var tt      = document.getElementById('tt');
+  var platter = document.getElementById('ttPlatter');
+  var recEl   = document.getElementById('ttRecord');
+  var discEl  = document.getElementById('ttDisc');
+  var labelEl = document.getElementById('ttLabel');
+  var nowEl   = document.getElementById('ttNow');
+  var barEl   = document.getElementById('ttBar');
+  var timeEl  = document.getElementById('ttTime');
+  var playBt  = document.getElementById('ttPlay');
+  var ejectBt = document.getElementById('ttEject');
+  var tabsEl  = document.getElementById('deckTabs');
+  var crateEl = document.getElementById('deckCrate');
+  var ghostEl = document.getElementById('deckGhost');
+  var closeBt = document.getElementById('deckClose');
+  var badgeEl = document.getElementById('ttBadge');
+  var linksEl = document.getElementById('ttLinks');
+  var auraEl  = document.getElementById('ttAura');
+
+  var DUR   = 30;          // 30 秒片段 / 无音源时的试听时长（秒）
+  var cur   = null;        // 当前唱片
+  var curI  = -1;          // 当前唱片在本分类里的下标
+  var curCat = -1;         // 当前唱片来自哪个分类（换标签后才知道该给谁打高亮）
+  var catI  = 0;           // 当前分类
+  var state = 'idle';      // idle | playing | paused | ended
+  var prog  = 0;           // 0~1
+  var tPrev = 0, raf = 0;
+  var audio = null;        // 只在曲目填了 src / pv 时才会被创建
+  var crateBuilt = false;  // 唱片箱是否已建过（第一次打开面板时才建，见 open()）
+  var mode  = 'none';      // full=整首 | clip=30 秒片段 | none=无音源只走动画
+  var cap   = 0;           // >0 = 到点即停（片段）；0 = 播到自然结束
+  var span  = DUR;         // 进度条满格秒数（真实时长未知时的兜底）
+  var fadeT = 0;           // 渐入动画的 rAF 句柄
+  var fadeArmed = false;   // 只有「这一次是真的要出声」时才让它渐入，缓冲恢复不会再渐一次
+
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+
+  /* ---------- 程序生成封面 ----------
+     确定性：曲名一样，封面永远一样（hash 决定母题与配色），刷新不会乱跳。
+     六组「强调色 + 底色」全部取自站点现有的冷暖调，不引入新色系。 */
+  var ART = [
+    ['#5f96dd', '#17263a'],
+    ['#dc7f9f', '#301d26'],
+    ['#3fb98d', '#14291f'],
+    ['#d8a63a', '#2b2213'],
+    ['#9a80d6', '#221c34'],
+    ['#6d8f86', '#182423']
+  ];
+  function hash(s){
+    var h = 2166136261, i;
+    for (i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+    return h >>> 0;
+  }
+  function coverArt(seed){
+    var h = hash(seed);
+    var p = ART[h % ART.length];
+    var a = p[0], bg = p[1];
+    var m = Math.floor(h / 7) % 4, i, x, y;
+    var g = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
+            '<rect width="100" height="100" fill="' + bg + '"/>';
+    if (m === 0){
+      var cx = 30 + (h % 36), cy = 30 + (Math.floor(h / 11) % 36);
+      g += '<circle cx="' + cx + '" cy="' + cy + '" r="30" fill="none" stroke="' + a + '" stroke-width="7"/>' +
+           '<circle cx="' + cx + '" cy="' + cy + '" r="14" fill="' + a + '"/>';
+    } else if (m === 1){
+      for (i = -2; i < 7; i++){
+        g += '<rect x="' + (i * 22 + (h % 9) - 20) + '" y="-20" width="9" height="150" fill="' + a +
+             '" opacity="' + (0.22 + ((i + 3) % 3) * 0.3).toFixed(2) + '" transform="rotate(18 50 50)"/>';
+      }
+    } else if (m === 2){
+      for (y = 0; y < 5; y++) for (x = 0; x < 5; x++){
+        if (((h >>> (x + y * 5)) & 1) === 0) continue;
+        g += '<circle cx="' + (12 + x * 19) + '" cy="' + (12 + y * 19) + '" r="' +
+             (2.5 + ((h >>> (x * 3 + y)) & 3)) + '" fill="' + a + '"/>';
+      }
+    } else {
+      g += '<rect x="10" y="54" width="80" height="28" fill="' + a + '" opacity=".85"/>' +
+           '<circle cx="' + (26 + (h % 46)) + '" cy="34" r="19" fill="' + a + '"/>';
+    }
+    g += '<rect x="0.5" y="0.5" width="99" height="99" fill="none" stroke="rgba(230,236,238,.12)"/></svg>';
+    return g;
+  }
+
+  /* 有真专辑封面就用真图，没有就退回上面那套生成的抽象封面。
+     用在「拖拽时跟手的那张唱片」和「唱片中心的圆标签」两处 ——
+     唱片箱那边要在 <img> 自己身上挂 onerror 做回退，所以不走这里。 */
+  function artHTML(it){
+    return it.cover
+      ? '<img src="assets/covers/' + esc(it.cover) + '" alt="" draggable="false">'
+      : coverArt(it.t + '|' + it.a);
+  }
+
+  /* ---------- 三个板块各一个主题色 ----------
+     只染唱片机（拖放高亮 / 播放时的盘面辉光 / LED）和时间轴（进度条 + 时间数字）；
+     JS 只改 .deck 上的 --accent 与 --accent-glow 两个变量，配色细节全留在 CSS 里。
+     三色都取自站点现有色板：锈橙（与机器人同暖调）+ ART 里已经在用的冷蓝 / 青绿。 */
+  var TINT = [
+    ['#b4623a', 'rgba(180,98,58,.20)', 'rgba(180,98,58,.46)'],   // 我最爱
+    ['#5f96dd', 'rgba(95,150,221,.20)', 'rgba(95,150,221,.46)'], // 我超爱
+    ['#3fb98d', 'rgba(63,185,141,.20)', 'rgba(63,185,141,.46)']  // 我巨爱
+  ];
+  function applyTint(){
+    var t = TINT[catI] || TINT[0];
+    deck.style.setProperty('--accent', t[0]);
+    deck.style.setProperty('--accent-glow', t[1]);
+    deck.style.setProperty('--accent-line', t[2]);
+  }
+
+  /* ---------- 唱片外圈跟着专辑封面走 ----------
+     把封面画到 40×40 的小 canvas 上，只采样「外缘环带」（半径 0.62~0.98）的像素求平均，
+     统一提到能看的亮度后，按 100% / 55% / 18% 三档向黑压暗，作为唱片外圈由内到外的
+     渐变停止色（CSS 读 --rec-edge / --rec-mid / --rec-out）。
+     ⚠️ 封面是本站 assets/covers 下的同源图片，canvas 不会被判脏；
+        但整段仍裹在 try 里，任何一步出事就回退成原来的死黑。 */
+  function hexRGB(h){
+    var n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function setDiscEdge(r, g, b){
+    var mx = Math.max(r, g, b) || 1;
+    /* 两端各夹一下，中间原样 —— 目标不是「还原封面色」，而是「在深色唱盘上还认得出是这张专辑的颜色」：
+       太暗（<116）抬到 116，否则整圈沉进死黑，等于没做；
+       过亮（>150）压到 150 —— 实测白底封面（Iridescent）按原亮度会在盘上糊出一圈白光，
+       比死黑更假；压到 150 就变成银灰，色相还在。
+       提亮倍数再封 2.4 上限，防止近乎全黑的封面被硬拉成灰白。 */
+    var tgt = mx < 116 ? 116 : (mx > 150 ? 150 : mx);
+    var k = Math.max(0.6, Math.min(2.4, tgt / mx));
+    r = Math.min(255, Math.round(r * k));
+    g = Math.min(255, Math.round(g * k));
+    b = Math.min(255, Math.round(b * k));
+    var mix = function(f){
+      return 'rgb(' + Math.round(r * f) + ',' + Math.round(g * f) + ',' + Math.round(b * f) + ')';
+    };
+    discEl.style.setProperty('--rec-edge', mix(1));
+    discEl.style.setProperty('--rec-mid', mix(.68));
+    discEl.style.setProperty('--rec-out', mix(.30));
+    /* 唱纹的描线色也吃封面主色，盘面才有「整张都是这张专辑的颜色」的连贯感 */
+    discEl.style.setProperty('--rec-line', 'rgba(' + r + ',' + g + ',' + b + ',.13)');
+    discEl.style.setProperty('--rec-glow', 'rgba(' + r + ',' + g + ',' + b + ',.32)');
+  }
+  function clearDiscEdge(){
+    discEl.style.removeProperty('--rec-edge');
+    discEl.style.removeProperty('--rec-mid');
+    discEl.style.removeProperty('--rec-out');
+    discEl.style.removeProperty('--rec-line');
+    discEl.style.removeProperty('--rec-glow');
+  }
+  /* 转盘背后的环境柔光：有真封面就铺真图（会被 blur(40px) 糊成一片色雾），
+     没有就走程序封面的强调色。取不到就整体收掉。 */
+  function applyAura(it){
+    if (!auraEl) return;
+    if (it && it.cover){
+      auraEl.style.backgroundImage = 'url("assets/covers/' + it.cover.replace(/"/g, '') + '")';
+    } else if (it){
+      var p = ART[hash(it.t + '|' + it.a) % ART.length];
+      auraEl.style.backgroundImage = 'radial-gradient(circle at 50% 45%, ' + p[0] + ', ' + p[1] + ' 72%)';
+    } else {
+      auraEl.style.backgroundImage = 'none';
+    }
+    auraEl.classList.toggle('is-on', !!it);
+  }
+  /* 有真封面就采样真图；没有（走 coverArt 那张抽象封面）就直接取那张图的强调色 */
+  function applyArtEdge(it){
+    clearDiscEdge();
+    if (it.cover){
+      var im = new Image();
+      im.onload = function(){
+        try {
+          var S = 40, c = document.createElement('canvas'), mid = (S - 1) / 2;
+          c.width = c.height = S;
+          var x = c.getContext('2d');
+          x.drawImage(im, 0, 0, S, S);
+          var d = x.getImageData(0, 0, S, S).data;
+          var r = 0, g = 0, b = 0, n = 0, i, xx, yy, dx, dy, rr;
+          for (yy = 0; yy < S; yy++){
+            for (xx = 0; xx < S; xx++){
+              dx = (xx - mid) / mid; dy = (yy - mid) / mid;
+              rr = Math.sqrt(dx * dx + dy * dy);
+              if (rr < 0.62 || rr > 0.98) continue;      // 只取外缘那一圈
+              i = (yy * S + xx) * 4;
+              r += d[i]; g += d[i + 1]; b += d[i + 2]; n++;
+            }
+          }
+          if (n) setDiscEdge(r / n, g / n, b / n);
+        } catch (e){}
+      };
+      im.src = 'assets/covers/' + it.cover;
+      return;
+    }
+    var p = hexRGB(ART[hash(it.t + '|' + it.a) % ART.length][0]);
+    setDiscEdge(p[0], p[1], p[2]);
+  }
+
+  /* ---------- 状态提示 ----------
+     文案集中在这一处：曲名 · 艺人，需要时再补一句提示。
+     用户先要求删掉说明句、后又点名要回这三句（2026-09-21 第八次改动）。 */
+  function setNow(tip){
+    if (!cur){ nowEl.textContent = '把右侧的唱片拖到转盘上'; return; }
+    nowEl.innerHTML = '<b>' + esc(cur.t) + '</b>' + (cur.a ? ' · ' + esc(cur.a) : '') +
+      (tip ? '<br><span class="deck__tip">' + tip + '</span>' : '');
+  }
+
+  /* ---------- 唱片箱 ---------- */
+  function renderTabs(){
+    var i, b;
+    tabsEl.innerHTML = '';
+    for (i = 0; i < CATS.length; i++){
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'deck__tab' + (i === catI ? ' is-on' : '');
+      b.textContent = CATS[i].name;
+      b.setAttribute('data-cat', i);
+      tabsEl.appendChild(b);
+    }
+    applyTint();
+  }
+  function renderCrate(){
+    var list = CATS[catI].list, i, it, b, img, inner, url;
+    crateBuilt = true;
+    crateEl.innerHTML = '';
+    for (i = 0; i < list.length; i++){
+      it = list[i];
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'sleeve' + ((i === curI && catI === curCat) ? ' is-on' : '');
+      b.setAttribute('data-i', i);
+      b.setAttribute('aria-label', '试听 ' + it.t);
+      b.innerHTML =
+        '<span class="sleeve__art"><span class="sleeve__inner">' + coverArt(it.t + '|' + it.a) + '</span></span>' +
+        '<span class="sleeve__meta"><b>' + esc(it.t) + '</b><i>' + esc(it.a) + '</i></span>';
+      crateEl.appendChild(b);
+      /* 真封面：直接用 <img> 贴在生成的抽象封面之上，而不是先 Image() 探一次 ——
+         探测会让 17 张图在面板一打开时就全部下载，loading="lazy" 也就白写了。
+         这里失败就自己摘掉，底下那张抽象封面接着顶班。 */
+      if (it.cover){
+        inner = b.querySelector('.sleeve__inner');
+        url = 'assets/covers/' + it.cover;
+        img = document.createElement('img');
+        img.className = 'sleeve__img';
+        img.setAttribute('loading', 'lazy');
+        img.setAttribute('decoding', 'async');
+        img.setAttribute('draggable', 'false');   // 见 CSS 里那段注释
+        img.alt = '';
+        img.onerror = function(){ if (this.parentNode) this.parentNode.removeChild(this); };
+        img.src = url;
+        inner.appendChild(img);
+      }
+    }
+  }
+  function markPlaying(){
+    var all = crateEl.querySelectorAll('.sleeve'), i, mine;
+    for (i = 0; i < all.length; i++){
+      mine = (i === curI && catI === curCat);
+      all[i].classList.toggle('is-on', mine);
+      /* 只有「正在出声」的那张亮电平条，暂停/结束时收掉 */
+      all[i].classList.toggle('is-playing', mine && state === 'playing');
+    }
+  }
+
+  /* ---------- 转盘 / 传动 ---------- */
+  /* 整首播放时长会超过一分钟，所以不能再直接拼 '0:秒'（0:360 这种） */
+  function fmt(sec){
+    sec = Math.max(0, Math.round(sec));
+    var m = Math.floor(sec / 60), r = sec % 60;
+    return m + ':' + (r < 10 ? '0' : '') + r;
+  }
+  /* 进度条满格用哪个秒数：有真实音源就用它的真实时长，没有就退回 span */
+  function totalSec(){
+    return (audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : span;
+  }
+  function paint(){
+    /* 站内没有音源的曲目不给假时长 —— 显示「— / —」，免得进度条空跑一段骗人 */
+    if (cur && mode === 'none'){
+      barEl.style.width = '0%';
+      timeEl.textContent = '— / —';
+      discEl.style.transform = 'rotate(0deg)';
+      return;
+    }
+    var tot = totalSec();
+    barEl.style.width = (prog * 100).toFixed(2) + '%';
+    timeEl.textContent = fmt(prog * tot) + ' / ' + fmt(tot);
+    discEl.style.transform = 'rotate(' + (prog * 1440).toFixed(2) + 'deg)';
+  }
+  function setState(s){
+    state = s;
+    deck.setAttribute('data-tt-state', s);
+    /* mute = 唱片放上去了但站内没有音源：唱针不落、进度条不跑，只给官方平台跳转。
+       取出照样可用，所以 ejectBt 不禁用。 */
+    playBt.textContent = (s === 'playing') ? '暂停'
+      : (s === 'paused' ? '继续'
+      : (s === 'ended' ? '重播'
+      : (s === 'mute' ? '站内无音源' : '播放')));
+    playBt.disabled = (s === 'idle' || s === 'mute');
+    ejectBt.disabled = (s === 'idle');
+    markPlaying();          // 电平条跟播放状态走
+  }
+  function stopRAF(){
+    if (raf) window.cancelAnimationFrame(raf);
+    raf = 0;
+  }
+  /* ---------- 渐入 ----------
+     起播时音量从 0 爬到 1（约 1.1 秒）。用 audio.volume，不用 WebAudio 的
+     createMediaElementSource —— 网易云 / Apple 的 CDN 都不给 CORS 头，
+     接上 MediaElementSource 会被判成污染源直接静音，整个播放器就没声了。
+     只在「这一次真的开始出声」时触发（配 audio 的 playing 监听 + fadeArmed）。 */
+  function fadeStop(){
+    if (fadeT){ window.cancelAnimationFrame(fadeT); fadeT = 0; }
+  }
+  function fadeIn(){
+    if (!audio) return;
+    fadeStop();
+    var t0 = 0, ms = 1100;
+    audio.volume = 0;
+    var step = function(t){
+      if (!audio){ fadeT = 0; return; }
+      if (!t0) t0 = t;
+      var k = (t - t0) / ms;
+      if (k >= 1){ audio.volume = 1; fadeT = 0; return; }
+      audio.volume = k;
+      fadeT = window.requestAnimationFrame(step);
+    };
+    fadeT = window.requestAnimationFrame(step);
+  }
+  /* ---------- 站内没有音源的曲目 ----------
+     用户明确要求：拿不到音频的别空放动画，改为摆官方平台跳转按钮。
+     平台清单来自曲目自己的 ext 字段，有哪个给哪个（Apple 上没有的就不摆 Apple）。 */
+  /* ── 平台跳转按钮 ────────────────────────────────────────────
+     每首都给 2 个：网易云 + QQ 音乐；
+     站内音源来自 Apple 的（有 pv 字段，52 首）再多给一个 Apple Music。
+     已经抓到精确链接的（music.163.com/song?id=、y.qq.com 歌曲页）优先用精确链接，
+     其余退回各平台的站内搜索 —— 永不 404，也不会张冠李戴。 */
+  var CJK_RE = /[㐀-䶿一-鿿぀-ヿ가-힯]/;
+  function appleStore(it){
+    return CJK_RE.test((it.t || '') + (it.a || '')) ? 'hk' : 'us';
+  }
+  function appleLink(it){
+    return 'https://music.apple.com/' + appleStore(it) + '/search?term=' +
+           encodeURIComponent(((it.t || '') + ' ' + (it.a || '')).trim());
+  }
+  function platLinks(it){
+    var i, u, out = [], ext = (it && it.ext) || [], ne = null, qq = null;
+    var kw = encodeURIComponent((((it && it.t) || '') + ' ' + ((it && it.a) || '')).trim());
+    for (i = 0; i < ext.length; i++){
+      u = (ext[i] && ext[i][1]) || '';
+      if (u.indexOf('music.163.com') > -1){ if (!ne) ne = ext[i]; }
+      else if (u.indexOf('y.qq.com') > -1){ if (!qq) qq = ext[i]; }
+      else out.push(ext[i]);
+    }
+    out.push(ne || ['网易云', 'https://music.163.com/#/search/m/?s=' + kw]);
+    out.push(qq || ['QQ 音乐', 'https://y.qq.com/n/ryqq/search?w=' + kw]);
+    if (it && it.pv) out.push(['Apple Music', appleLink(it)]);
+    return out;
+  }
+  function renderLinks(it){
+    /* 每首都挂，不再只在「站内无音源」时挂 —— 用户要求放歌时就看得到 */
+    var i, a, out = it ? platLinks(it) : [];
+    linksEl.innerHTML = '';
+    if (!out.length){ linksEl.hidden = true; return; }
+    for (i = 0; i < out.length; i++){
+      a = document.createElement('a');
+      a.href = out[i][1];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.title = '去 ' + out[i][0] + ' 听完整版';
+      a.innerHTML = esc(out[i][0]) + '<i>↗</i>';
+      linksEl.appendChild(a);
+    }
+    linksEl.hidden = false;
+  }
+  function tick(t){
+    if (!tPrev) tPrev = t;
+    var dt = (t - tPrev) / 1000;
+    tPrev = t;
+    if (dt > 0.25) dt = 0.25;              // 切标签/切后台回来时别一下跳完
+    if (audio && audio.readyState >= 1 && isFinite(audio.duration) && audio.duration > 0){
+      /* 有真实音源时进度以播放位置为准 —— RAF 自己累加会跑偏，
+         暂停、缓冲、后台降频这些情况也都交给 audio.currentTime 说话 */
+      if (cap && audio.currentTime >= cap){ stopRAF(); onEnd(); return; }
+      prog = clamp(audio.currentTime / audio.duration, 0, 1);
+      paint();
+      raf = window.requestAnimationFrame(tick);
+      return;
+    }
+    prog = clamp(prog + dt / span, 0, 1);
+    paint();
+    if (prog >= 1){ raf = 0; onEnd(); return; }
+    raf = window.requestAnimationFrame(tick);
+  }
+  /* audio.play() 返回 promise，被自动播放策略挡下时会 reject —— 不接住会冒未捕获错误 */
+  function playAudio(){
+    if (!audio) return;
+    fadeArmed = true;               // 这次是真的要出声了，等 playing 事件一到就渐入
+    try { var pr = audio.play(); if (pr && pr.catch) pr.catch(function(){}); } catch (e){}
+  }
+  function play(){
+    if (!cur || mode === 'none') return;   // 站内没有音源的曲目不给播，只留官方平台跳转
+    /* 只有「播完再点」才回到开头；从暂停继续必须接着上次的位置，
+       否则真音源一接进来，点一次「继续」就从头开始（老版本没音源时看不出这个坑） */
+    if (state === 'ended'){
+      prog = 0;
+      if (audio){ try { audio.currentTime = 0; } catch (e){} }
+    }
+    tPrev = 0;
+    setState('playing');
+    paint();
+    stopRAF();
+    raf = window.requestAnimationFrame(tick);
+    if (audio && audio.paused) playAudio();
+  }
+  function pause(){
+    stopRAF();
+    if (state !== 'playing') return;
+    setState('paused');
+    if (audio){ try { audio.pause(); } catch (e){} }
+  }
+  function onEnd(){
+    stopRAF();
+    fadeStop();
+    setState('ended');
+    paint();
+    setNow('播放结束，可以再拖一次');
+    if (audio){ try { audio.pause(); } catch (e){} }
+  }
+  /* 音源优先级：整首（本地文件或网络直链）> 官方 30 秒试听片段 > 没有音源（只走动画） */
+  function srcOf(it){
+    if (it.src)   return { url: /^https?:/i.test(it.src) ? it.src : 'assets/music/' + it.src, mode: 'full' };
+    /* pv 同样支持本地文件：写成文件名就走 assets/music/，写成 http 才是远程直链。
+       片段本地化之后，30 秒试听不再受 Apple CDN（国内访问不稳）影响。 */
+    if (it.pv)    return { url: /^https?:\/\//i.test(it.pv) ? it.pv : 'assets/music/' + it.pv, mode: 'clip' };
+    return null;
+  }
+  function badge(){
+    badgeEl.textContent = '33⅓ RPM · ' +
+      (mode === 'full' ? '整首播放' : (mode === 'clip' ? '试听 30 秒' : '站内无音源'));
+  }
+  /* 整首直链随时可能失效（第三方外链尤其），挂了就退到 30 秒片段，片段也挂就——
+     改摆官方平台跳转，不再空跑一段没声音的进度动画（用户明确要求）。 */
+  function onAudioError(){
+    if (mode === 'full' && cur && cur.pv){
+      mode = 'clip'; cap = DUR; prog = 0; tPrev = 0;
+      audio.src = srcOf(cur).url;
+      playAudio();
+      badge();
+      setNow('');
+      return;
+    }
+    if (audio){ try { audio.pause(); } catch (e){} }
+    audio = null;
+    fadeStop();
+    stopRAF();
+    mode = 'none'; cap = 0; span = DUR; prog = 0;
+    badge();
+    setState('mute');
+    paint();
+    renderLinks(cur);
+    setNow('音频没加载出来');
+  }
+  function load(it, idx){
+    cur = it;
+    curI = (typeof idx === 'number') ? idx : -1;
+    curCat = catI;
+    prog = 0;
+    span = DUR;
+    labelEl.innerHTML = artHTML(it);
+    applyArtEdge(it);                  // 唱片外圈按这张封面的边缘色重新染一遍
+    applyAura(it);                     // 转盘背后的环境柔光也跟着换
+    var labImg = labelEl.querySelector('img');
+    if (labImg){
+      labImg.onerror = function(){ labelEl.innerHTML = coverArt(it.t + '|' + it.a); };
+    }
+    recEl.classList.add('is-on');
+    platter.classList.add('has-rec');
+    setNow('');
+    stopRAF();
+    fadeStop();
+    if (audio){ try { audio.pause(); } catch (e){} audio = null; }
+    var s = srcOf(it);
+    mode = s ? s.mode : 'none';
+    cap  = (mode === 'clip') ? DUR : 0;
+    if (s){
+      audio = new Audio();
+      audio.preload = 'auto';
+      audio.volume = 0;                 // 渐入的起点；真正出声时由 fadeIn() 爬到 1
+      audio.addEventListener('ended', onEnd);
+      audio.addEventListener('error', onAudioError);
+      /* 每次真的开始出声都渐入一次。缓冲恢复也会触发 playing，
+         靠 fadeArmed 挡掉重复渐入（否则卡顿一次就再淡入一次）。 */
+      audio.addEventListener('playing', function(){
+        if (!fadeArmed) return;
+        fadeArmed = false;
+        fadeIn();
+      });
+      audio.src = s.url;
+    }
+    badge();
+    markPlaying();
+    renderLinks(it);
+    if (mode === 'none'){
+      /* 站内没有音源：唱针不落下、进度条不空跑，只把官方平台跳转亮出来 */
+      setState('mute');
+      paint();
+      setNow((it.ext && it.ext.length) ? '站内暂时放不了，去下面这些平台听' : '音频没加载出来');
+    } else {
+      play();
+    }
+  }
+  function eject(){
+    stopRAF();
+    fadeStop();
+    if (audio){ try { audio.pause(); } catch (e){} audio = null; }
+    cur = null; curI = -1; prog = 0;
+    mode = 'none'; cap = 0; span = DUR;
+    badgeEl.textContent = '33⅓ RPM · 待机';
+    recEl.classList.remove('is-on');
+    platter.classList.remove('has-rec');
+    clearDiscEdge();
+    applyAura(null);
+    renderLinks(null);
+    paint();
+    setState('idle');
+    setNow(null);
+    markPlaying();
+  }
+
+  playBt.addEventListener('click', function(){
+    if (!cur) return;
+    if (state === 'playing') pause(); else play();
+  });
+  ejectBt.addEventListener('click', eject);
+  tabsEl.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('.deck__tab');
+    if (!b) return;
+    var i = +b.getAttribute('data-cat');
+    if (i === catI) return;
+    catI = i;
+    renderTabs();
+    renderCrate();
+  });
+
+  /* ---------- 拖唱片 ----------
+     用指针事件一份代码同时覆盖鼠标与触屏；松手位置离转盘圆心够近就落盘。
+     另外「按下没怎么移动」也算落盘，等于点击直接播放。 */
+  var drag = null;
+  function ghostPlace(x, y){
+    ghostEl.style.transform = 'translate(' + (x - 62) + 'px,' + (y - 62) + 'px)';
+    var pr = platter.getBoundingClientRect();
+    var cx = pr.left + pr.width / 2, cy = pr.top + pr.height / 2;
+    var d  = Math.sqrt((x - cx) * (x - cx) + (y - cy) * (y - cy));
+    var ok = d < pr.width / 2 + 46;
+    platter.classList.toggle('is-over', ok);
+    return ok;
+  }
+  function onMove(e){
+    if (!drag) return;
+    if (Math.abs(e.clientX - drag.x0) > 4 || Math.abs(e.clientY - drag.y0) > 4) drag.moved = true;
+    ghostPlace(e.clientX, e.clientY);
+  }
+  function onUp(e){
+    if (!drag) return;
+    var over = ghostPlace(e.clientX, e.clientY);
+    var moved = drag.moved, idx = drag.idx, el = drag.el;
+    window.removeEventListener('pointermove', onMove);
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointercancel', onUp);
+    ghostEl.classList.remove('is-on');
+    el.classList.remove('is-src');
+    platter.classList.remove('is-over');
+    drag = null;
+    if (moved && !over) return;                       // 拖到别处松手 = 放回去
+    load(CATS[catI].list[idx], idx);
+  }
+  crateEl.addEventListener('pointerdown', function(e){
+    var b = e.target.closest && e.target.closest('.sleeve');
+    if (!b) return;
+    var i = +b.getAttribute('data-i');
+    var it = CATS[catI].list[i];
+    drag = { idx: i, el: b, x0: e.clientX, y0: e.clientY, moved: false };
+    b.classList.add('is-src');
+    ghostEl.innerHTML = '<span>' + artHTML(it) + '</span>';
+    ghostEl.classList.add('is-on');
+    ghostPlace(e.clientX, e.clientY);
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  });
+
+  /* ---------- 尺寸 ---------- */
+  function fit(){
+    if (!slot || !tt || !slot.parentNode) return;
+    var box = slot.parentNode;
+    var aw = box.clientWidth;
+    var ah = Math.max(120, box.clientHeight - 176);   // 让出传动条 + 两行文字
+    if (aw < 40) return;
+    var s = clamp(Math.min(aw / 440, ah / 300), 0.55, 1.4);
+    slot.style.width  = (440 * s) + 'px';
+    slot.style.height = (300 * s) + 'px';
+    tt.style.transform = 'scale(' + s + ')';
+  }
+
+  /* ---------- 开 / 关 ----------
+     面板盖住整屏，但翻页是 window 上的监听，所以要把翻页手势拦在面板这一层。
+     滚轮拦在 deck 上就够（面板铺满整屏，事件必然先经过 deck；箱子自己的滚动
+     不受影响，只是不再往上冒到 window）。
+     键盘必须在 window 的**捕获阶段**拦，理由有两条：
+       ① 翻页监听也在 window 上，只有捕获阶段才赶在它前面；
+       ② 焦点不保证在面板里（点完标签可能落回 body），挂在 deck 上会漏。
+     只吃导航键，Escape 交给 close()；空格要放行给按钮，否则「空格按按钮」失效。 */
+  var NAV_KEYS = { ArrowDown:1, ArrowUp:1, PageDown:1, PageUp:1, Home:1, End:1 };
+  function isOpen(){ return deck.classList.contains('is-open'); }
+  function open(){
+    if (isOpen()) return;
+    deck.classList.add('is-open');
+    /* 唱片箱拖到第一次打开再建：39 张真封面全都是 <img>，早建就等于首页白下十几张图。
+       建在隐藏容器里的图，loading="lazy" 是不生效的（元素有几何位置，照样立刻请求）。 */
+    if (!crateBuilt) renderCrate();
+    fit();
+    paint();
+    if (closeBt && closeBt.focus) closeBt.focus();
+  }
+  function close(){
+    if (!isOpen()) return;
+    deck.classList.remove('is-open');
+    pause();
+    if (deck.contains(document.activeElement) && document.activeElement.blur){
+      document.activeElement.blur();
+    }
+  }
+  deck.addEventListener('wheel', function(e){ e.stopPropagation(); }, { passive: true });
+  window.addEventListener('keydown', function(e){
+    if (!isOpen()) return;
+    /* 分享弹窗开着时键盘完全归它：这里是捕获阶段，
+       若继续往下走，stopPropagation 会让输入框连空格和方向键都打不出来，
+       Esc 也会把唱机一起关掉。 */
+    var shBoxOpen = document.getElementById('share');
+    if (shBoxOpen && shBoxOpen.classList.contains('is-on')) return;
+    if (e.key === 'Escape' || e.key === 'Esc'){ close(); return; }
+    var t = e.target;
+    var onBtn = !!(t && t.closest && t.closest('button,[role="button"]'));
+    if (NAV_KEYS[e.key] || ((e.key === ' ' || e.key === 'Spacebar') && !onBtn)){
+      e.stopPropagation();
+    }
+  }, true);
+  if (closeBt) closeBt.addEventListener('click', close);
+  /* 标题下那行小字右侧的分享入口：复用 04 号块的「分享安利」弹窗（写进 public.recos） */
+  var deckShareBt = document.getElementById('deckShare');
+  if (deckShareBt) deckShareBt.addEventListener('click', function(){
+    if (window.openShareMusic) window.openShareMusic();
+  });
+
+  /* ---------- 入口 ----------
+     ① 点文字标签；② 点画面上「音乐」那一簇（半径取簇半径的 1.25 倍）。
+     簇心坐标每帧都在动，所以现取现用 __zyInterestHub，不缓存。 */
+  var label = document.querySelector('.ilabel[data-k="music"]');
+  if (label){
+    label.addEventListener('click', function(e){ e.stopPropagation(); open(); });
+    label.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+        e.preventDefault();
+        e.stopPropagation();
+        open();
+      }
+    });
+  }
+  var pageSec = document.querySelector('.page--interests');
+  if (pageSec){
+    pageSec.addEventListener('click', function(e){
+      if (!pageSec.classList.contains('is-active')) return;
+      var hub = window.__zyInterestHub && window.__zyInterestHub('music');
+      if (!hub) return;
+      var r = pageSec.getBoundingClientRect();
+      var dx = (e.clientX - r.left) - hub.x;
+      var dy = (e.clientY - r.top) - hub.y;
+      if (dx * dx + dy * dy <= Math.pow(hub.r * 1.25, 2)) open();
+    });
+  }
+
+  var rt = 0;
+  window.addEventListener('resize', function(){
+    window.clearTimeout(rt);
+    rt = window.setTimeout(fit, 160);
+  }, { passive: true });
+
+  /* ---------- 初始化 ---------- */
+  renderTabs();          // 标签栏只有三个按钮，建了不亏
+  /* renderCrate() 故意不在这里调用 —— 见 open() 里的注释 */
+  setState('idle');
+  paint();
+
+  /* 留给自动化测试与手工调试：控制台里 __zyDeck.dur(3) 可以把试听压成 3 秒 */
+  window.__zyDeck = {
+    open: open,
+    close: close,
+    load: function(i){ load(CATS[catI].list[i], i); },
+    dur: function(v){ DUR = v; span = v; if (cap) cap = v; paint(); },
+    info: function(){ return { mode: mode, cap: cap, dur: audio ? audio.duration : null, prog: prog, state: state }; },
+    el: function(){ return audio; },
+    /* 站内取不到音源时那排官方平台按钮，自动化测试用它断言 */
+    links: function(){ return [].slice.call(linksEl.querySelectorAll('a')).map(function(a){ return a.textContent + '=' + a.href; }); },
+    cats: CATS
+  };
+})();
+</script>
+
+<!-- ══════════ 剪辑板块：两组卡片（覆盖式面板，从「剪辑」簇进入） ══════════
+     第一组「正片」九张 —— 滚动堆叠：每张各占一段滚动距离，position:sticky + top:0
+       让它们都停在同一个位置，后面的从下面滑上来盖住前面的；被盖住的缩小并压暗，
+       一叠纸的层次才出得来。
+     第二组「片尾」九张 —— 左右滑动：父层给 perspective，卡片按「离中心多远」算
+       translateX + translateZ（后退）+ rotateY（侧转）+ scale，于是中间那张最近最亮、
+       两侧依次变小变暗往后退，这就是景深。拖拽 / 滚轮 / ←→ / 方向键都能换，
+       连续切到第一张或最后一张就停住（不循环）。
+     卡片都是纯图，不配任何文字；名字只在左侧清单里出，片尾九张在清单里合并成
+     一个条目「一些片尾」，不标任何单独的名字，末尾「还有很多很多」只是收尾。
+     数据与图片延到第一次打开才注入（理由见面板 HTML 上方的注释）。 -->
+<script>
+(function(){
+  var panel   = document.getElementById('clips');
+  var stage   = document.getElementById('clipsStage');
+  var stack   = document.getElementById('cstack');
+  var tocEl   = document.getElementById('clipsToc');
+  var pileSec = document.getElementById('pileSec');
+  var swipeEl = document.getElementById('swipe');
+  var swipeNum= document.getElementById('swipeNum');
+  var swipePrev = document.getElementById('swipePrev');
+  var swipeNext = document.getElementById('swipeNext');
+  var closeBt = document.getElementById('clipsClose');
+  if (!panel || !stage || !stack) return;
+
+  var DIR = 'assets/clips/';
+
+  /* ---- 第一组：九张正片，滚动堆叠。两个校园新闻也在这儿，出大图 ---- */
+  var SHOWS = [
+    { t:'马戏之王',       c:'电影解说', img:'01-greatest-showman.jpg' },
+    { t:'外婆的家',       c:'电影解说', img:'02-the-way-home.jpg' },
+    { t:'战火中的芭蕾',   c:'电影解说', img:'03-ballet-in-flames.jpg' },
+    { t:'巴黎奥运会',     c:'专题节目', img:'04-paris-2024.jpg' },
+    { t:'围棋',           c:'专题介绍', img:'05-go.jpg' },
+    { t:'文物修复师',     c:'人物介绍', img:'06-relic-restorer.jpg' },
+    { t:'贝尔·格里尔斯', c:'人物介绍', img:'07-bear-grylls.jpg' },
+    { t:'歌手大赛',       c:'时事新闻', img:'08-singers-contest.jpg' },
+    { t:'运动会',         c:'时事新闻', img:'09-sports-meet.jpg' }
+  ];
+
+  /* ---- 第二组：片尾，左右滑动。不标任何单独的名字 ---- */
+  var CREDITS = [
+    '10-credit-01.jpg', '11-credit-02.jpg', '12-my-altay.jpg',
+    '13-credit-03.jpg', '14-credit-04.jpg', '15-credit-05.jpg',
+    '16-credit-06.jpg', '17-credit-07.jpg', '18-credit-08.jpg'
+  ].map(function(f){ return { t:'一些片尾', img:f }; });
+
+  var VISIBLE = 3;            /* 中心两侧各露这么多张，更远的直接隐形省合成 */
+
+  var built = false, items = [], shots = [];
+  var ph = 0, secTop = 0, shotCur = 0, lastCur = -1, ticking = false;
+  var dragging = null, dragMoved = 0, wheelAcc = 0, wheelAt = 0, wheelDone = false, gesturing = false;
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function clamp01(v){ return v < 0 ? 0 : (v > 1 ? 1 : v); }
+  /* 窄屏（≤900）左侧那栏横过来当顶部进度条，滚动方向也跟着换 */
+  function isWide(){ return window.innerWidth > 900; }
+  /* 视口中线越过了第二组，就算「已经翻到片尾这一段」 */
+  function inSecond(){
+    if (!secTop) return false;
+    return stage.scrollTop + (stage.clientHeight || ph) * 0.5 >= secTop;
+  }
+
+  /* ---------- 建内容（第一次打开才建） ---------- */
+  function build(){
+    built = true;
+
+    /* 左侧清单：九张正片各一条，片尾九张合并成一条，末尾再加一句收尾 */
+    var tocData = SHOWS.concat([{ t:'一些片尾', c:'' }]);
+    tocData.forEach(function(w, i){
+      var li = document.createElement('li');
+      li.className = 'clips__tocitem';
+      li.setAttribute('data-i', i);
+      li.setAttribute('role', 'button');
+      li.tabIndex = 0;
+      var a = document.createElement('span');
+      a.className = 'clips__tocidx'; a.textContent = pad(i + 1);
+      var b = document.createElement('span');
+      b.className = 'clips__toct'; b.textContent = w.t;
+      li.appendChild(a); li.appendChild(b);
+      if (w.c){
+        var c = document.createElement('span');
+        c.className = 'clips__tocc'; c.textContent = w.c;
+        li.appendChild(c);
+      }
+      tocEl.appendChild(li);
+    });
+    var tail = document.createElement('li');
+    tail.className = 'clips__tocitem clips__tocitem--tail';
+    var ta = document.createElement('span');
+    ta.className = 'clips__toct'; ta.textContent = '还有很多很多';
+    tail.appendChild(ta);
+    tocEl.appendChild(tail);
+
+    /* 第一组：滚动堆叠 */
+    SHOWS.forEach(function(w, i){
+      var item = document.createElement('div');
+      item.className = 'cstack__item';
+      var card = document.createElement('article');
+      card.className = 'clip';
+      var img = document.createElement('img');
+      img.src = DIR + w.img;
+      img.alt = w.t + ' · ' + w.c;
+      img.decoding = 'async';
+      if (i > 1) img.loading = 'lazy';   /* 头两张要出现在第一屏，其余靠 lazy */
+      var shade = document.createElement('span');
+      shade.className = 'clip__shade';
+      card.appendChild(img); card.appendChild(shade);
+      item.appendChild(card);
+      stack.appendChild(item);
+      items.push({ card: card, shade: shade });
+    });
+
+    /* 第二组：左右滑动的卡片。这一组在下面，图先 lazy，滚到才拉 */
+    CREDITS.forEach(function(w, i){
+      var card = document.createElement('div');
+      card.className = 'swipe__card';
+      card.setAttribute('data-i', i);
+      var img = document.createElement('img');
+      img.src = DIR + w.img;
+      img.alt = w.t;
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      card.appendChild(img);
+      swipeEl.appendChild(card);
+      shots.push(card);
+    });
+
+    paintSwipe(shotCur);
+  }
+
+  /* ---------- 尺寸 ---------- */
+  function measure(){
+    var h = stage.clientHeight || panel.clientHeight || 1;
+    /* 每张卡片的滚动行程（也就是相邻两张之间的空档来源）：取舞台高的 0.57 屏。
+       ⚠ 下限被卡片自己卡死：.clip 限高 82vh → 高最多 0.46×舞台高，
+       所以这个系数必须 > 0.46，否则下一张会在上一张还没升到位时就压上来。
+       0.63 → 0.57 是把空档再收紧一档（1440×900 下 152px → 98px）。 */
+    ph = Math.round(h * 0.57);
+    stack.style.setProperty('--cl-ph', ph + 'px');
+    /* .clips 是 fixed（定位元素），所以这就是相对舞台顶部的偏移 */
+    secTop = pileSec ? pileSec.offsetTop : 0;
+  }
+  function swipeStep(){
+    var w = shots.length ? shots[0].offsetWidth : 480;
+    return Math.max(90, Math.round(w * 0.6));      /* 相邻两张的中心间距 */
+  }
+
+  /* ---------- 第二组：左右滑动 + 层叠景深 ---------- */
+  function paintSwipe(f){
+    var n = shots.length;
+    if (!n) return;
+    var gap = swipeStep();
+    for (var i = 0; i < n; i++){
+      var d = i - f;
+      var ad = Math.abs(d);
+      var card = shots[i];
+      if (ad > VISIBLE){
+        card.style.opacity = '0';
+        card.style.zIndex = '0';
+        card.style.pointerEvents = 'none';
+        continue;
+      }
+      var sign = d < 0 ? -1 : 1;
+      card.style.opacity = Math.max(0, 1 - ad * 0.38).toFixed(3);
+      card.style.zIndex = String(60 - Math.round(ad * 10));
+      card.style.pointerEvents = ad < 0.4 ? 'auto' : 'none';
+      card.style.transform =
+          'translateX(' + (d * gap).toFixed(1) + 'px)' +
+          ' translateZ(' + (-ad * 170).toFixed(1) + 'px)' +
+          ' rotateY(' + (-sign * ad * 24).toFixed(2) + 'deg)' +
+          ' scale(' + (1 - ad * 0.13).toFixed(3) + ')';
+      if (ad < 0.5) card.classList.add('swipe__card--cur');
+      else card.classList.remove('swipe__card--cur');
+    }
+  }
+  /* 不循环：到第一张 / 最后一张就停住 */
+  function focusShot(i){
+    var n = shots.length;
+    if (!n) return;
+    shotCur = Math.max(0, Math.min(n - 1, Math.round(i)));
+    paintSwipe(shotCur);
+    if (swipeNum) swipeNum.textContent = pad(shotCur + 1) + ' / ' + pad(n);
+  }
+
+  /* 拖拽 */
+  if (swipeEl){
+    swipeEl.addEventListener('pointerdown', function(e){
+      dragging = { id: e.pointerId, x: e.clientX, base: shotCur };
+      dragMoved = 0;
+      swipeEl.classList.add('is-drag');
+      if (swipeEl.setPointerCapture){
+        try { swipeEl.setPointerCapture(e.pointerId); } catch (err){}
+      }
+    });
+    swipeEl.addEventListener('pointermove', function(e){
+      if (!dragging || e.pointerId !== dragging.id) return;
+      var dx = e.clientX - dragging.x;
+      if (Math.abs(dx) > dragMoved) dragMoved = Math.abs(dx);
+      var f = dragging.base - dx / swipeStep();
+      paintSwipe(Math.max(0, Math.min(shots.length - 1, f)));   /* 到头就拖不动 */
+    });
+    function endDrag(e){
+      if (!dragging) return;
+      var dx = (e && e.clientX != null ? e.clientX : dragging.x) - dragging.x;
+      var base = dragging.base;
+      dragging = null;
+      swipeEl.classList.remove('is-drag');
+      focusShot(base - dx / swipeStep());
+    }
+    swipeEl.addEventListener('pointerup', endDrag);
+    swipeEl.addEventListener('pointercancel', endDrag);
+
+    /* 点两侧那张直接切过去（拖动结束时也会来一发 click，用 dragMoved 挡掉） */
+    swipeEl.addEventListener('click', function(e){
+      if (dragMoved > 6) return;
+      var card = e.target.closest ? e.target.closest('.swipe__card') : null;
+      if (!card) return;
+      var i = parseInt(card.getAttribute('data-i'), 10);
+      if (!isNaN(i) && i !== shotCur) focusShot(i);
+    });
+  }
+  if (swipePrev) swipePrev.addEventListener('click', function(){ focusShot(shotCur - 1); });
+  if (swipeNext) swipeNext.addEventListener('click', function(){ focusShot(shotCur + 1); });
+
+  /* 滚轮：在第二组这一段里接管，竖向滚轮（鼠标滚轮）和横向（触控板横滑）都算，
+     鼠标停在图上滚就行。
+     ⚠ 触控板一次滑动会甩出一长串惯性事件，按「每攒够一档就翻一张」来做的话，
+     一划就飞过去四五张。所以这里按 **手势** 而不是按位移来锁：
+     间隔超过 GESTURE_GAP 才认作新的一次手势，一次手势最多翻一张，
+     剩下的惯性全部吃掉（preventDefault），既不切卡也不滚页面。
+     翻到第一张 / 最后一张后不再拦截，把滚动交回页面。 */
+  var GESTURE_GAP = 180;   /* 静置超过这个毫秒数，下一次滚动算新手势 */
+  var WHEEL_TRIGGER = 22;  /* 攒够这么多位移才翻，挡掉指尖轻微蹭到的误触 */
+
+  /* 指针是不是压在正中间那张图上 —— 只有压在它上面的滚动才算「翻页」，
+     落在两侧递远的景深卡、标题、左右留白、按钮条，统统算页面滚动放过去
+     （否则相邻几张横着铺满整个容器，等于哪儿都算图上，白留出的空白区就没了）。
+     ⚠ 矩形用 getBoundingClientRect（已含 3D 变换后的实际投影），
+     所以拿的是屏幕上真看得见的那块位置。 */
+  function overCard(x, y){
+    if (x == null || y == null) return false;
+    var c = swipeEl ? swipeEl.querySelector('.swipe__card--cur') : null;
+    if (!c) c = shots[shotCur];
+    if (!c) return false;
+    var r = c.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
+  if (pileSec){
+    pileSec.addEventListener('wheel', function(e){
+      if (!inSecond()) return;
+
+      var dx = e.deltaX, dy = e.deltaY;
+      var s = Math.abs(dx) > Math.abs(dy) ? dx : dy;
+      if (!s) return;
+
+      var now = Date.now();
+      /* 手势命中情况整段复用一次 —— 一次手势里指针基本不动，没必要每帧都量 */
+      if (now - wheelAt > GESTURE_GAP){
+        wheelAcc = 0; wheelDone = false;
+        gesturing = overCard(e.clientX, e.clientY);
+      }
+      wheelAt = now;
+      if (!gesturing) return;                            /* 没压在图上 → 交给页面正常滚 */
+
+      var next = shotCur + (s > 0 ? 1 : -1);
+      if (next < 0 || next > shots.length - 1) return;     /* 到头了，交回页面 */
+
+      if (wheelDone){ e.preventDefault(); return; }        /* 这次手势已经翻过一张 */
+
+      wheelAcc += s;
+      if (Math.abs(wheelAcc) < WHEEL_TRIGGER){ e.preventDefault(); return; }
+
+      var dir = wheelAcc > 0 ? 1 : -1;
+      wheelAcc = 0;
+      wheelDone = true;
+      e.preventDefault();
+      focusShot(shotCur + dir);
+    }, { passive: false });
+  }
+
+  /* ---------- 第一组：滚动堆叠 ---------- */
+  function paint(){
+    var st = stage.scrollTop;
+
+    for (var i = 0; i < items.length; i++){
+      var covered = clamp01((st - i * ph) / ph);        /* 0 刚贴顶 → 1 被下一张盖满 */
+      var coming  = clamp01((st - (i - 1) * ph) / ph);  /* 0 还在下面 → 1 已经就位 */
+      var scale = (1 - covered * 0.055) * (0.952 + 0.048 * coming);
+      items[i].card.style.transform = 'scale(' + scale.toFixed(4) + ')';
+      items[i].shade.style.opacity = (covered * 0.62).toFixed(3);
+    }
+
+    /* 第二组在清单里只占一条，所以滚进这一段就固定高亮它 ——
+       既不会停在第一组最后一项，更不会滑到收尾那句「还有很多很多」上 */
+    var curIdx;
+    if (inSecond()) curIdx = SHOWS.length;
+    else curIdx = Math.max(0, Math.min(SHOWS.length - 1, Math.round(st / ph)));
+
+    if (curIdx !== lastCur){
+      lastCur = curIdx;
+      var lis = tocEl.children;
+      for (var j = 0; j < lis.length; j++){
+        if (j === curIdx) lis[j].classList.add('is-on');
+        else lis[j].classList.remove('is-on');
+      }
+      syncTocScroll(lis[curIdx]);
+    }
+  }
+
+  /* 把当前项带进可视区。窄屏清单是横的，所以横竖两种都要管 */
+  function syncTocScroll(li){
+    if (!li) return;
+    if (isWide()){
+      var top = li.offsetTop, bot = top + li.offsetHeight;
+      var vt = tocEl.scrollTop, vb = vt + tocEl.clientHeight;
+      if (top < vt) tocEl.scrollTop = Math.max(0, top - 4);
+      else if (bot > vb) tocEl.scrollTop = bot - tocEl.clientHeight + 4;
+    } else {
+      var l = li.offsetLeft, r = l + li.offsetWidth;
+      var vl = tocEl.scrollLeft, vr = vl + tocEl.clientWidth;
+      var to = null;
+      if (l < vl + 10) to = Math.max(0, l - 10);
+      else if (r > vr - 10) to = r - tocEl.clientWidth + 10;
+      if (to !== null){
+        if (tocEl.scrollTo) tocEl.scrollTo({ left: to, behavior: 'smooth' });
+        else tocEl.scrollLeft = to;
+      }
+    }
+  }
+
+  function onScroll(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){ ticking = false; paint(); });
+  }
+  stage.addEventListener('scroll', onScroll, { passive: true });
+
+  /* ---------- 开关 ---------- */
+  function isOpen(){ return panel.classList.contains('is-open'); }
+  function open(){
+    if (isOpen()) return;
+    panel.classList.add('is-open');
+    if (!built) build();
+    measure();
+    stage.scrollTop = 0;
+    lastCur = -1;
+    paintSwipe(shotCur);
+    paint();
+    if (closeBt && closeBt.focus) closeBt.focus();
+  }
+  function close(){
+    if (!isOpen()) return;
+    panel.classList.remove('is-open');
+    if (panel.contains(document.activeElement) && document.activeElement.blur){
+      document.activeElement.blur();
+    }
+  }
+  if (closeBt) closeBt.addEventListener('click', close);
+
+  /* 面板里的滚轮不外泄给全站翻页（第二组那段的接管逻辑见上） */
+  panel.addEventListener('wheel', function(e){ e.stopPropagation(); }, { passive: true });
+
+  /* 点清单就翻过去：正片平滑滚到位，片尾那条直接滚到那一段 */
+  function goto(i){
+    var top = i < SHOWS.length ? i * ph : secTop;
+    if (stage.scrollTo) stage.scrollTo({ top: top, behavior: 'smooth' });
+    else stage.scrollTop = top;
+  }
+  tocEl.addEventListener('click', function(e){
+    var li = e.target.closest ? e.target.closest('.clips__tocitem') : null;
+    if (!li || li.classList.contains('clips__tocitem--tail')) return;
+    var i = parseInt(li.getAttribute('data-i'), 10);
+    if (isNaN(i)) return;
+    goto(i);
+  });
+  tocEl.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' && e.key !== ' ' && e.key !== 'Spacebar') return;
+    var li = e.target.closest ? e.target.closest('.clips__tocitem') : null;
+    if (!li || li.classList.contains('clips__tocitem--tail')) return;
+    e.preventDefault();
+    var i = parseInt(li.getAttribute('data-i'), 10);
+    if (!isNaN(i)) goto(i);
+  });
+
+  /* 键盘和音乐面板一样：必须在 window 捕获阶段拦，否则翻页键会先把整站翻走。
+     焦点在片尾那叠卡上时，左右键留给它翻卡。 */
+  var NAV_KEYS = { ArrowDown:1, ArrowUp:1, ArrowLeft:1, ArrowRight:1, PageDown:1, PageUp:1, Home:1, End:1 };
+  window.addEventListener('keydown', function(e){
+    if (!isOpen()) return;
+    var shBox = document.getElementById('share');
+    if (shBox && shBox.classList.contains('is-on')) return;
+    if (e.key === 'Escape' || e.key === 'Esc'){ close(); return; }
+    var t = e.target;
+    if (t && t.closest && t.closest('#swipe') &&
+        (e.key === 'ArrowLeft' || e.key === 'ArrowRight')){
+      e.preventDefault();
+      e.stopPropagation();
+      focusShot(shotCur + (e.key === 'ArrowRight' ? 1 : -1));
+      return;
+    }
+    var onBtn = !!(t && t.closest && t.closest('button,[role="button"]'));
+    if (NAV_KEYS[e.key] || ((e.key === ' ' || e.key === 'Spacebar') && !onBtn)){
+      e.stopPropagation();
+    }
+  }, true);
+
+  /* ---------- 入口：文字标签 + 画面上「剪辑」那一簇 ---------- */
+  var label = document.querySelector('.ilabel[data-k="edit"]');
+  if (label){
+    label.addEventListener('click', function(e){ e.stopPropagation(); open(); });
+    label.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+        e.preventDefault(); e.stopPropagation(); open();
+      }
+    });
+  }
+  var pageSec = document.querySelector('.page--interests');
+  if (pageSec){
+    pageSec.addEventListener('click', function(e){
+      if (!pageSec.classList.contains('is-active')) return;
+      var hub = window.__zyInterestHub && window.__zyInterestHub('edit');
+      if (!hub) return;
+      var r = pageSec.getBoundingClientRect();
+      var dx = (e.clientX - r.left) - hub.x;
+      var dy = (e.clientY - r.top) - hub.y;
+      if (dx * dx + dy * dy <= Math.pow(hub.r * 1.25, 2)) open();
+    });
+  }
+
+  var rt = 0;
+  window.addEventListener('resize', function(){
+    window.clearTimeout(rt);
+    rt = window.setTimeout(function(){
+      var ratio = ph ? stage.scrollTop / ph : 0;
+      measure();
+      /* 一屏高度变了，按比例把滚动位置带过去，不然会停在一半的卡片上 */
+      if (isOpen()) stage.scrollTop = ratio * ph;
+      lastCur = -1;
+      paintSwipe(shotCur);      /* 卡片宽变了，间距跟着重算 */
+      paint();
+    }, 160);
+  }, { passive: true });
+
+  if (window.ResizeObserver){
+    new ResizeObserver(function(){ measure(); lastCur = -1; paint(); }).observe(stage);
+  }
+
+  /* 调试口：__zyClips.goto(3) 翻到第四张；__zyClips.shot(2) 切片尾第三张 */
+  window.__zyClips = {
+    open: open, close: close, shows: SHOWS, credits: CREDITS,
+    goto: goto, shot: focusShot,
+    state: function(){
+      return { ph: ph, secTop: secTop, scrollTop: stage.scrollTop, cur: lastCur,
+               shotCur: shotCur, built: built, wide: isWide(), items: items.length, shots: shots.length };
+    }
+  };
 })();
 </script>
 

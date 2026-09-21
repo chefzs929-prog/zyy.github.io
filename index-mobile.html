@@ -1158,16 +1158,18 @@ button,a,input,textarea,select,.hcard,.fb__star,.pager button{touch-action:manip
   top:auto;right:auto;left:50%;
   bottom:calc(env(safe-area-inset-bottom,0px) + 13px);
   transform:translateX(-50%);
-  flex-direction:row;align-items:center;gap:11px;
+  flex-direction:row;align-items:center;gap:10px;
 }
-.pager button{padding:11px 7px}      /* 加大点按面积，但视觉不变 */
-.pager .bar{width:20px;height:2px}
-.pager button.is-on .bar{width:34px;height:2px}
+.pager button{padding:11px 6px}      /* 加大点按面积，但视觉不变 */
+.pager .bar{width:18px;height:2px}
+.pager button.is-on .bar{width:30px;height:2px}
 
-/* ── 桌面版入口 ── */
+/* ── 桌面版入口 ──
+   分页器从 4 档变 5 档（新增 INTERESTS）后整条变宽，最左边那颗按钮会和这个入口
+   抢同一块地方 —— 把它抬到分页器上面一行（12px → 48px）。 */
 .mfoot{
   position:fixed;z-index:66;
-  left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);
+  left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 48px);
 }
 .mfoot a{
   display:inline-block;
@@ -1308,6 +1310,460 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 .share__cancel,.share__send{min-height:44px}   /* 44px 触控尺寸 */
 .share__priv{font-size:11px}
 
+/* ══════════════════════════════════════════════════════════
+   03 INTERESTS（移动版神经网）
+   竖版构图：五个簇改成上下错落的之字形铺满整屏，簇半径、节点数、
+   字号都比桌面版小一号；页眉贴左上，安全区一起算进去。
+   ══════════════════════════════════════════════════════════ */
+.page--interests{background:transparent}
+.inet{
+  position:absolute;inset:0;width:100%;height:100%;
+  z-index:1;pointer-events:none;
+  opacity:0;transition:opacity 1s var(--ease);
+}
+.page--interests.is-active .inet{opacity:1}
+
+.ihead{
+  position:absolute;z-index:3;pointer-events:none;
+  left:17px;top:calc(env(safe-area-inset-top,0px) + 74px);
+}
+.ihead .phead__idx{font-size:9px;letter-spacing:.26em;margin-bottom:10px}
+.ihead .phead__title{font-size:clamp(24px,7.6vw,38px)}
+.ihead .phead__zh{font-size:13px;letter-spacing:.16em;margin-top:8px}
+
+/* 五个兴趣标签：坐标由 JS 按簇心的百分比写入，resize / 翻页时自动跟着走 */
+.ilabels{position:absolute;inset:0;z-index:2;pointer-events:none}
+.ilabel{
+  position:absolute;left:var(--x,50%);top:var(--y,50%);
+  transform:translate(-50%,0);
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  text-align:center;white-space:nowrap;
+  opacity:0;transition:transform .5s var(--ease), opacity .8s var(--ease);
+}
+.page--interests.is-active .ilabel{opacity:1}
+.ilabel__zh{
+  font-size:13.5px;letter-spacing:.2em;line-height:1.25;color:var(--ink-2);
+  margin-right:-.2em;     /* 末字符后那半格字距补回来 */
+}
+.ilabel__en{
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--ink-4);margin-right:-.24em;
+}
+.ilabel[data-k="music"],.ilabel[data-k="edit"]{pointer-events:auto}
+.ilabel__hint{
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;
+  color:var(--ink-3);margin-right:-.18em;
+}
+/* 触屏没有 hover：is-hot 只在「点中了这一簇」时短暂点亮 */
+.ilabel.is-hot{transform:translate(-50%,-6px)}
+.ilabel.is-hot .ilabel__zh{color:#fff;text-shadow:0 0 16px var(--c)}
+.ilabel.is-hot .ilabel__en{color:var(--ink-2)}
+
+/* ══════════════════════════════════════════════════════════
+   03.1 MUSIC（移动版竖式唱机）
+   竖版：页眉 → 唱机 → 曲名 → 控制条 → 进度 → 平台跳转 → 小字
+   唱片箱改成底部抽屉（点转盘唤出），另有「三条横线」唤出文字歌单。
+   z-index 70 —— 压住分页器(65)与桌面版入口(66)，低于颗粒层 .fx(80)。
+   ══════════════════════════════════════════════════════════ */
+.mdeck{
+  position:fixed;inset:0;z-index:70;
+  display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 16px calc(env(safe-area-inset-bottom,0px) + 16px);
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(180,98,58,.07), transparent 60%),
+    linear-gradient(180deg,#101517 0%,#0c1012 100%);
+  opacity:0;visibility:hidden;transform:translateY(2.5%);
+  transition:opacity .5s var(--ease), transform .6s var(--ease),
+             visibility 0s linear .6s;
+  overflow:hidden;
+}
+.mdeck.is-open{
+  opacity:1;visibility:visible;transform:none;
+  transition:opacity .5s var(--ease), transform .6s var(--ease),
+             visibility 0s linear 0s;
+}
+.mdeck__head{position:relative;flex:0 0 auto;padding-right:44px}
+.mdeck__head .phead__idx{font-size:9px;margin-bottom:9px}
+.mdeck__head .phead__title{font-size:clamp(26px,8vw,38px)}
+.mdeck__head .phead__zh{font-size:13px;margin-top:7px}
+.mdeck__close{
+  position:absolute;right:0;top:-4px;width:40px;height:40px;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--line);color:var(--ink-3);
+  font-size:14px;line-height:1;
+}
+
+/* ── 唱机 ── */
+.mdeck__stage{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:210px}
+.mtt-slot{position:relative;width:300px;height:300px}
+.mtt{position:relative;width:300px;height:300px;transform-origin:50% 50%}
+.mtt__aura{
+  position:absolute;left:50%;top:118px;width:250px;height:250px;margin:-125px 0 0 -125px;
+  border-radius:50%;background-size:cover;background-position:center;
+  filter:blur(38px);opacity:0;transition:opacity .8s var(--ease);pointer-events:none;
+}
+.mtt__aura.is-on{opacity:.42}
+.mtt__platter{
+  position:absolute;left:8px;top:12px;width:216px;height:216px;border-radius:50%;
+  z-index:1;
+  background:radial-gradient(circle at 50% 38%,#222a2d,#121718 72%);
+  border:1px solid rgba(230,236,238,.10);
+  box-shadow:inset 0 16px 34px -14px #000, 0 20px 42px -22px #000;
+  display:flex;align-items:center;justify-content:center;
+  transition:box-shadow .5s var(--ease);
+}
+.mtt__platter.is-over{box-shadow:inset 0 16px 34px -14px #000, 0 0 0 2px var(--accent-line,rgba(230,236,238,.3))}
+.mtt__hint{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  font-size:11.5px;letter-spacing:.14em;line-height:2;color:var(--ink-3);text-align:center;
+  transition:opacity .45s var(--ease);
+}
+.mtt__platter.has-rec .mtt__hint{opacity:0}
+.mtt__record{
+  position:absolute;left:50%;top:50%;width:186px;height:186px;margin:-93px 0 0 -93px;
+  opacity:0;transform:scale(.86);
+  transition:opacity .55s var(--ease), transform .55s var(--ease);
+}
+.mtt__record.is-on{opacity:1;transform:none}
+.mtt__disc{
+  position:relative;width:100%;height:100%;border-radius:50%;
+  background:
+    repeating-radial-gradient(circle at 50% 50%, rgba(230,236,238,.05) 0 1px, rgba(0,0,0,0) 1px 4px),
+    radial-gradient(circle at 50% 50%,
+      var(--rec-mid,#1b2124) 0 34%, var(--rec-edge,#2a3235) 63%, var(--rec-out,#0e1213) 100%);
+  box-shadow:inset 0 0 26px rgba(0,0,0,.65), 0 0 26px -8px var(--rec-glow,transparent);
+}
+.mtt__label{
+  position:absolute;left:50%;top:50%;width:72px;height:72px;margin:-36px 0 0 -36px;
+  border-radius:50%;overflow:hidden;background:#1a2022;
+  box-shadow:0 0 0 1px rgba(230,236,238,.16);
+}
+.mtt__label img{display:block;width:100%;height:100%;object-fit:cover}
+.mtt__hole{
+  position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;
+  border-radius:50%;background:#0a0d0e;box-shadow:inset 0 0 4px #000;
+}
+/* ⚠ 层序写死：转盘 1 < 转轴 2 < 唱臂 3 —— 唱臂必须在最上面，
+   否则唱针看着像钻到唱片底下去了（桌面版踩过这个坑） */
+.mtt__pivot{
+  position:absolute;right:24px;top:32px;width:28px;height:28px;border-radius:50%;z-index:2;
+  background:linear-gradient(160deg,#3b4549,#1d2325);
+  border:1px solid rgba(230,236,238,.14);
+}
+.mtt__arm{
+  position:absolute;right:37px;top:44px;width:10px;height:134px;z-index:3;
+  transform-origin:50% 7px;transform:rotate(-4deg);
+  transition:transform 1s var(--ease);
+}
+.mtt__armbar{
+  position:absolute;left:4px;top:0;width:2px;height:100%;border-radius:2px;
+  background:linear-gradient(180deg,#95a0a4,#4d5a60 70%,#2c3436);
+}
+.mtt__armbar::after{
+  content:'';position:absolute;left:-3px;bottom:-2px;width:8px;height:16px;border-radius:2px;
+  background:linear-gradient(180deg,#c4cfd4,#6d7679);
+}
+.mdeck[data-tt-state="playing"] .mtt__arm{transform:rotate(38deg)}
+.mtt__badge{
+  position:absolute;left:0;right:0;bottom:-4px;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  font-family:var(--mono);font-size:8.6px;letter-spacing:.2em;color:var(--ink-4);
+  text-transform:uppercase;
+}
+.mtt__led{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--accent,#8a9498);box-shadow:0 0 9px var(--accent-glow,transparent);
+}
+.mdeck[data-tt-state="playing"] .mtt__led{animation:mled 1.6s ease-in-out infinite}
+@keyframes mled{0%,100%{opacity:.45}50%{opacity:1}}
+
+/* ── 曲名 / 控制条 / 进度 ── */
+.mdeck__now{
+  flex:0 0 auto;margin:6px 0 10px;text-align:center;
+  font-size:13px;line-height:1.7;color:var(--ink-2);
+}
+.mdeck__now b{color:var(--ink);font-weight:600}
+.mdeck__tip{display:block;font-size:11px;color:var(--ink-4);letter-spacing:.04em}
+.mdeck__ctl{flex:0 0 auto;display:flex;gap:10px;align-items:center}
+.mtt__btn{
+  flex:1;min-height:46px;border:1px solid var(--line);background:rgba(230,236,238,.03);
+  color:var(--ink-2);font-family:var(--mono);font-size:11px;letter-spacing:.18em;
+  transition:border-color .4s var(--ease), color .4s var(--ease), background .4s var(--ease);
+}
+.mtt__btn:disabled{opacity:.42}
+.mtt__btn--play:not(:disabled){border-color:var(--accent-line,var(--line-2));color:var(--ink)}
+.mdeck__bar{flex:0 0 auto;display:flex;align-items:center;gap:10px;margin-top:12px}
+.mtt__track{flex:1;height:2px;background:rgba(230,236,238,.10);overflow:hidden}
+.mtt__track i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent,#8a9498),#fff)}
+.mtt__time{
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;color:var(--ink-4);
+  min-width:74px;text-align:right;
+}
+.mdeck__links{flex:0 0 auto;display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}
+.mdeck__links[hidden]{display:none}
+.mdeck__links a{
+  font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--ink-3);border:1px solid var(--line);padding:8px 10px;
+}
+.mdeck__links a i{font-style:normal;opacity:.6;margin-left:4px}
+.mdeck__sub{flex:0 0 auto;margin-top:12px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.mdeck__subt{font-size:11.5px;line-height:1.9;color:var(--ink-4);letter-spacing:.02em}
+.mdeck__share{
+  border:1px solid var(--line);background:none;color:var(--ink-3);
+  font-family:var(--zh);font-size:11.5px;letter-spacing:.06em;padding:9px 12px;
+}
+
+/* ── 唱片箱（底部抽屉）── */
+.mcrate__mask{
+  position:absolute;inset:0;z-index:73;background:rgba(6,8,9,.55);
+  opacity:0;visibility:hidden;transition:opacity .4s var(--ease), visibility 0s linear .4s;
+}
+.mcrate__mask.is-on{opacity:1;visibility:visible;transition:opacity .4s var(--ease), visibility 0s linear 0s}
+.mcrate{
+  position:absolute;left:0;right:0;bottom:0;z-index:74;
+  max-height:74%;display:flex;flex-direction:column;
+  padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 16px);
+  background:rgba(13,17,19,.97);border-top:1px solid var(--line-2);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  transform:translateY(101%);
+  transition:transform .48s var(--ease);
+}
+.mcrate.is-open{transform:none}
+.mcrate__hd{
+  font-family:var(--mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;
+  color:var(--ink-4);margin-bottom:10px;
+}
+.mcrate__handle{width:38px;height:3px;border-radius:2px;background:var(--line-2);margin:0 auto 12px}
+.mcrate__tabs{display:flex;gap:8px;margin-bottom:12px;flex:0 0 auto}
+.mcrate__tab{
+  flex:1;min-height:40px;border:1px solid var(--line);background:none;
+  color:var(--ink-3);font-family:var(--zh);font-size:13px;letter-spacing:.06em;
+}
+.mcrate__tab.is-on{border-color:var(--accent-line,var(--line-2));color:var(--ink);background:var(--accent-glow,transparent)}
+.mcrate__grid{
+  flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  display:grid;grid-template-columns:1fr 1fr;gap:9px;
+}
+.msleeve{
+  display:flex;align-items:center;gap:9px;text-align:left;
+  border:1px solid var(--line);background:rgba(230,236,238,.02);padding:8px;min-height:60px;
+}
+.msleeve.is-on{border-color:var(--accent-line,var(--line-2));background:var(--accent-glow,transparent)}
+.msleeve__art{flex:0 0 42px;width:42px;height:42px;border-radius:2px;overflow:hidden;background:#1a2022;position:relative}
+.msleeve__art img{display:block;width:100%;height:100%;object-fit:cover}
+/* 内层必须绝对定位铺满格子：SVG 占位图先铺满，真封面 <img> 才能叠在它上面；
+   不定位的话 <img> 会被 SVG 挤到格子外、被 overflow:hidden 裁掉（只看得到占位图） */
+.msleeve__inner{position:absolute;inset:0}
+.msleeve__inner svg{display:block;width:100%;height:100%}
+/* 真封面同样绝对定位铺满格子，直接盖住占位 SVG；
+   只给内层定位不够 —— <img> 会排在 SVG 后面掉出格子，同样被裁掉 */
+.msleeve__inner img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
+.msleeve__meta{min-width:0;flex:1}
+.msleeve__meta b{
+  display:block;font-size:12px;font-weight:600;color:var(--ink);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.msleeve__meta i{
+  display:block;font-style:normal;font-size:10px;color:var(--ink-4);margin-top:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+/* 正在出声的那张：右下角三格电平条 */
+.msleeve.is-playing .msleeve__art::after{
+  content:'';position:absolute;right:2px;bottom:2px;width:14px;height:9px;
+  background:
+    linear-gradient(var(--accent,#fff),var(--accent,#fff)) 0 100%/3px 40% no-repeat,
+    linear-gradient(var(--accent,#fff),var(--accent,#fff)) 5.5px 100%/3px 100% no-repeat,
+    linear-gradient(var(--accent,#fff),var(--accent,#fff)) 11px 100%/3px 65% no-repeat;
+}
+
+/* ── 文字版歌单（三条横线唤出）── */
+.mlist{
+  position:absolute;inset:0;z-index:76;
+  display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 14px);
+  background:rgba(11,14,16,.98);
+  transform:translateY(100%);
+  transition:transform .44s var(--ease);
+}
+.mlist.is-open{transform:none}
+.mlist__hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex:0 0 auto}
+.mlist__ttl{font-family:var(--mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-4)}
+.mlist__close{
+  width:40px;height:40px;background:none;border:1px solid var(--line);
+  color:var(--ink-3);font-size:14px;line-height:1;
+}
+.mlist__tabs{display:flex;gap:8px;margin-bottom:10px;flex:0 0 auto}
+.mlist__tab{
+  flex:1;min-height:40px;border:1px solid var(--line);background:none;
+  color:var(--ink-3);font-family:var(--zh);font-size:13px;letter-spacing:.06em;
+}
+.mlist__tab.is-on{border-color:var(--accent-line,var(--line-2));color:var(--ink);background:var(--accent-glow,transparent)}
+.mlist__ol{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;list-style:none}
+.mlist__row{
+  display:flex;align-items:baseline;gap:9px;width:100%;text-align:left;
+  padding:11px 4px;border-bottom:1px solid var(--line);
+  background:none;color:var(--ink-2);font-family:var(--zh);font-size:13.5px;
+}
+.mlist__row.is-on{color:var(--ink);background:var(--accent-glow,transparent)}
+.mlist__n{font-family:var(--mono);font-size:9px;color:var(--ink-4);min-width:20px}
+.mlist__t{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mlist__a{
+  flex:0 1 auto;max-width:38%;font-size:11px;color:var(--ink-4);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* ══════════════════════════════════════════════════════════
+   03.2 EDITING（移动版剪辑作品集）
+   ------------------------------------------------------------
+   与桌面版同一套 18 张图，但按手机重做：
+     · 头部精简成「页眉 + 关闭」，目录改成顶部横向条（手指左右划着挑）；
+     · 第一组 9 张正片仍是竖向滚动堆叠 —— 竖着划本来就是手机上最顺的手势；
+     · 第二组 9 张片尾以横向拖拽为主，加了「快扫即翻」的速度判定；
+     · 触控目标一律 ≥44px；滚动容器统一 overscroll-behavior:contain，
+       划到头不会把整站一起拖走（iOS 的橡皮筋会穿透，必须写）。
+   z-index 70 —— 与唱机面板同级，低于 .fx(80)。
+   ══════════════════════════════════════════════════════════ */
+.mclips{
+  position:fixed;inset:0;z-index:70;
+  display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 0 calc(env(safe-area-inset-bottom,0px) + 10px);
+  /* 面板自身要持续滚动，iOS 上 backdrop-filter 每帧重算代价太高 —— 这里用实色 */
+  background:linear-gradient(180deg,#0d1113 0%,#090c0d 100%);
+  opacity:0;visibility:hidden;transform:translateY(2.5%);
+  transition:opacity .45s var(--ease), transform .5s var(--ease),
+             visibility 0s linear .5s;
+  overflow:hidden;
+}
+.mclips.is-open{
+  opacity:1;visibility:visible;transform:none;
+  transition:opacity .45s var(--ease), transform .5s var(--ease),
+             visibility 0s linear 0s;
+}
+.mclips__head{position:relative;flex:0 0 auto;padding:0 16px}
+.mclips__head .phead__idx{font-size:9px;margin-bottom:8px}
+.mclips__head .phead__title{font-size:clamp(24px,7.4vw,34px)}
+.mclips__head .phead__zh{font-size:13px;margin-top:6px}
+.mclips__subt{margin-top:8px;font-size:11.5px;line-height:1.9;color:var(--ink-4)}
+.mclips__close{
+  position:absolute;right:12px;top:-6px;width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--line);color:var(--ink-3);
+  font-size:14px;line-height:1;
+}
+
+/* ── 顶部横向目录条 ── */
+.mclips__nav{
+  flex:0 0 auto;display:flex;gap:7px;
+  margin-top:12px;padding:0 16px 4px;
+  overflow-x:auto;overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;      /* 划到头别把面板带着一起动 */
+  touch-action:pan-x;
+  scrollbar-width:none;
+}
+.mclips__nav::-webkit-scrollbar{height:0}
+.mclips__chip{
+  flex:0 0 auto;display:flex;align-items:center;gap:6px;
+  min-height:36px;padding:6px 12px;
+  background:none;border:1px solid var(--line);
+  color:var(--ink-4);font-family:var(--zh);font-size:12.5px;letter-spacing:.04em;
+  white-space:nowrap;
+  transition:border-color .35s var(--ease), color .35s var(--ease);
+}
+.mclips__chip.is-on{border-color:var(--rust);color:var(--ink);background:rgba(180,98,58,.09)}
+.mclips__chip i{font-style:normal;font-family:var(--mono);font-size:9px;color:var(--ink-4)}
+
+/* ── 唯一的滚动容器 ── */
+.mclips__stage{
+  flex:1 1 auto;min-height:0;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+  scrollbar-width:none;
+}
+.mclips__stage::-webkit-scrollbar{width:0}
+
+/* ---------- 第一组：九张正片，滚动堆叠 ---------- */
+.cstack{position:relative}
+.cstack__item{
+  /* --mc-ph 由 JS 写成「卡片实际高度 + 空档」，不再跟屏幕比例死绑 */
+  height:var(--mc-ph,70vh);
+  position:sticky;top:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:0 16px;
+}
+.clip{
+  position:relative;width:100%;aspect-ratio:16/9;
+  overflow:hidden;border-radius:11px;
+  border:1px solid var(--line-2);background:#05070a;
+  box-shadow:0 24px 52px -30px rgba(0,0,0,.92);
+  transform-origin:50% 50%;will-change:transform;
+}
+.clip img{
+  display:block;width:100%;height:100%;object-fit:cover;
+  -webkit-user-drag:none;user-select:none;pointer-events:none;
+}
+.clip::after{
+  content:'';position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+  background:radial-gradient(126% 96% at 50% 42%, rgba(5,7,10,0) 52%, rgba(5,7,10,.44) 100%);
+}
+.clip__shade{position:absolute;inset:-1px;border-radius:inherit;pointer-events:none;background:#05070a;opacity:0}
+
+/* ---------- 第二组：片尾，横向划 + 景深 ---------- */
+.pilesec{
+  min-height:100%;
+  display:flex;flex-direction:column;justify-content:center;
+  padding:44px 16px 34px;
+}
+.pilesec__hd{margin-bottom:16px}
+.pilesec__k{font-family:var(--mono);font-size:9px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-4)}
+.pilesec__t{margin-top:9px;font-size:15px;color:var(--ink-2)}
+/* 走马灯：一条横向 belt 不停向左流 —— DOM 里同一批卡片排两遍，
+   走到一组宽度就取模跳回去，接缝肉眼看不见。
+   ⚠ 每帧只改 belt 这一个元素的 transform（18 张卡自己不动），
+     一旦给每张都算 scale / rotate，手机上 60fps 立刻掉到三四十。
+   ⚠ touch-action:pan-y —— 竖向留给面板滚动，横向归拖拽手势。 */
+.caro{
+  position:relative;flex:0 0 auto;width:100%;
+  height:clamp(132px,23vh,208px);
+  overflow:hidden;
+  touch-action:pan-y;
+  user-select:none;-webkit-user-select:none;
+  outline:0;
+}
+/* 两侧渐隐：卡片从暗处浮出来、又沉回暗处，流动感全靠这两条 */
+.caro::before,.caro::after{
+  content:'';position:absolute;top:0;bottom:0;width:16%;z-index:2;pointer-events:none;
+}
+.caro::before{left:0;background:linear-gradient(90deg,#0a0d0e 0%,rgba(10,13,14,.72) 45%,rgba(10,13,14,0) 100%)}
+.caro::after{right:0;background:linear-gradient(270deg,#0a0d0e 0%,rgba(10,13,14,.72) 45%,rgba(10,13,14,0) 100%)}
+.caro__belt{
+  position:absolute;top:0;left:0;height:100%;
+  display:flex;align-items:center;gap:11px;
+  will-change:transform;
+}
+.caro__card{
+  flex:0 0 auto;width:var(--caro-card-w,58%);
+  aspect-ratio:16/9;height:auto;
+  border:1px solid var(--line-2);border-radius:10px;overflow:hidden;
+  background:#05070a;box-shadow:0 20px 40px -26px rgba(0,0,0,.92);
+}
+.caro__card img{
+  display:block;width:100%;height:100%;object-fit:cover;
+  pointer-events:none;-webkit-user-drag:none;user-select:none;
+}
+.caro__bar{
+  flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:14px;
+  margin-top:14px;
+}
+.caro__btn{
+  min-height:44px;padding:0 16px;
+  background:none;border:1px solid var(--line);
+  color:var(--ink-3);font-family:var(--zh);font-size:12.5px;letter-spacing:.06em;
+}
+.caro__btn.is-off{color:var(--ink-4);border-color:var(--line)}
+.caro__num{font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:var(--ink-2);min-width:52px;text-align:center}
+
 /* ── 矮屏 / 横屏 ── */
 @media (max-height:520px){
   .robot-stage{height:min(62vh,240px)}
@@ -1365,8 +1821,9 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 <nav class="pager" id="pager" aria-label="页面导航">
   <button data-go="0" class="is-on"><span class="lbl">Cover</span><span class="bar"></span></button>
   <button data-go="1"><span class="lbl">About</span><span class="bar"></span></button>
-  <button data-go="2"><span class="lbl">Contact</span><span class="bar"></span></button>
-  <button data-go="3"><span class="lbl">Feedback</span><span class="bar"></span></button>
+  <button data-go="2"><span class="lbl">Interests</span><span class="bar"></span></button>
+  <button data-go="3"><span class="lbl">Contact</span><span class="bar"></span></button>
+  <button data-go="4"><span class="lbl">Feedback</span><span class="bar"></span></button>
 </nav>
 
 <!-- ══════════ 欢迎语浮层（首次点击封面任意处时打字机弹出） ══════════ -->
@@ -1603,8 +2060,57 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
     </div>
   </section>
 
-  <!-- ─────────── 03 ASK ANYTHING ─────────── -->
-  <section class="page page--contact" data-pid="SEC.03 — ASK">
+  <!-- ─────────── 03 INTERESTS ───────────
+       兴趣爱好页（移动版）：五个兴趣 = 神经网络上的五个高亮簇。
+       与桌面版同一套画法（brass/teal 连线 + 缓慢漂移 + 随机放电），
+       区别只在构图：竖版改成上下错落的之字形，簇更小、节点更稀、字号更小。
+       canvas 只在这一页 is-active 时才跑 rAF，离开即停，不和别的页抢性能。 -->
+  <section class="page page--interests" data-pid="SEC.03 — INTERESTS">
+
+    <canvas class="inet" id="interestNet" aria-hidden="true"></canvas>
+
+    <!-- 五个兴趣标签：坐标由 JS 按簇心的百分比写入，resize / 翻页时自动跟着走 -->
+    <div class="ilabels" id="iLabels">
+
+      <div class="ilabel" data-k="music" role="button" tabindex="0" aria-label="打开音乐板块">
+        <span class="ilabel__zh">音乐</span>
+        <span class="ilabel__en">Music</span>
+        <span class="ilabel__hint">点击进入</span>
+      </div>
+
+      <div class="ilabel" data-k="race">
+        <span class="ilabel__zh">竞速</span>
+        <span class="ilabel__en">Racing</span>
+      </div>
+
+      <div class="ilabel" data-k="tennis">
+        <span class="ilabel__zh">网球</span>
+        <span class="ilabel__en">Tennis</span>
+      </div>
+
+      <div class="ilabel" data-k="film">
+        <span class="ilabel__zh">影视</span>
+        <span class="ilabel__en">Film &amp; TV</span>
+      </div>
+
+      <div class="ilabel" data-k="edit" role="button" tabindex="0" aria-label="打开剪辑作品集">
+        <span class="ilabel__zh">剪辑</span>
+        <span class="ilabel__en">Editing</span>
+        <span class="ilabel__hint">点击进入</span>
+      </div>
+
+    </div>
+
+    <header class="ihead">
+      <div class="phead__idx">03 / Interests</div>
+      <h2 class="phead__title chrome">INTERESTS</h2>
+      <p class="phead__zh">兴趣爱好</p>
+    </header>
+
+  </section>
+
+  <!-- ─────────── 04 ASK ANYTHING ─────────── -->
+  <section class="page page--contact" data-pid="SEC.04 — ASK">
     <div class="page__inner">
       <div class="wrap">
 
@@ -1667,8 +2173,8 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
     </div>
   </section>
 
-  <!-- ─────────── 04 FEEDBACK ─────────── -->
-  <section class="page page--feedback" data-pid="SEC.04 — FEEDBACK">
+  <!-- ─────────── 05 FEEDBACK ─────────── -->
+  <section class="page page--feedback" data-pid="SEC.05 — FEEDBACK">
     <div class="page__inner">
       <div class="wrap">
 
@@ -1762,6 +2268,132 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
   </section>
 
 </main>
+
+<!-- ══════════ 音乐板块（移动版竖式唱机）—— 从 INTERESTS 页「音乐」簇进入 ══════════
+     竖版：页眉 → 唱机 → 曲名 → 控制条 → 进度 → 平台跳转 → 小字。
+     · 点转盘（放唱片的那块空白处）→ 底部抽屉式唱片箱滑上来；
+     · 点一张唱片 → 抽屉自动收起、唱片落盘并开播；
+     · 控制条右侧「三条横线」→ 文字版歌单，点一行直接切歌。 -->
+<div class="mdeck" id="mdeck" data-tt-state="idle" role="dialog" aria-modal="true" aria-label="音乐 · 黑胶唱机">
+
+  <header class="mdeck__head">
+    <button class="mdeck__close" type="button" id="mdeckClose" aria-label="关闭音乐面板">✕</button>
+    <div class="phead__idx">03.1 / Music</div>
+    <h2 class="phead__title chrome">MUSIC</h2>
+    <p class="phead__zh">音乐</p>
+  </header>
+
+  <div class="mdeck__stage" id="mdeckStage">
+    <div class="mtt-slot" id="mttSlot">
+      <div class="mtt" id="mtt">
+
+        <!-- 转盘外的环境光：一张模糊放大的当前封面，颜色随唱片走 -->
+        <div class="mtt__aura" id="mttAura" aria-hidden="true"></div>
+
+        <!-- 转盘 = 「放唱片的空白处」，点它唤出唱片箱 -->
+        <div class="mtt__platter" id="mttPlatter" role="button" tabindex="0" aria-label="打开唱片箱">
+          <div class="mtt__hint" id="mttHint">点这里<br>挑一张唱片</div>
+          <div class="mtt__record" id="mttRecord">
+            <div class="mtt__disc" id="mttDisc">
+              <div class="mtt__label" id="mttLabel"></div>
+              <span class="mtt__hole"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mtt__pivot"></div>
+        <div class="mtt__arm"><div class="mtt__armbar"></div></div>
+
+        <div class="mtt__badge"><span class="mtt__led"></span><span id="mttBadge">33⅓ RPM · 待机</span></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="mdeck__now" id="mttNow"></p>
+
+  <div class="mdeck__ctl">
+    <button class="mtt__btn mtt__btn--play" type="button" id="mttPlay" disabled>播放</button>
+    <button class="mtt__btn mtt__btn--eject" type="button" id="mttEject" disabled>取出</button>
+  </div>
+
+  <div class="mdeck__bar">
+    <div class="mtt__track"><i id="mttBar"></i></div>
+    <span class="mtt__time" id="mttTime">0:00 / 0:30</span>
+  </div>
+
+  <!-- 站内取不到音源的曲目：这里给出官方平台跳转按钮（内容由 JS 按曲目的 ext 字段填） -->
+  <div class="mdeck__links" id="mttLinks" hidden></div>
+
+  <div class="mdeck__sub">
+    <p class="mdeck__subt">
+      这里是从我歌单精选的5%<br>
+      如果可以的话 也想听听你的宝藏歌曲
+    </p>
+    <button class="mdeck__share" type="button" id="mdeckShare">分享你的宝藏歌曲</button>
+  </div>
+
+  <!-- 唱片箱：底部抽屉 -->
+  <div class="mcrate__mask" id="mcrateMask"></div>
+  <div class="mcrate" id="mcrate" aria-hidden="true">
+    <div class="mcrate__handle" aria-hidden="true"></div>
+    <div class="mcrate__hd">Record crate / 唱片箱</div>
+    <div class="mcrate__tabs" id="mcrateTabs"></div>
+    <div class="mcrate__grid" id="mcrateGrid"></div>
+  </div>
+
+  <!-- 文字版歌单 -->
+  <div class="mlist" id="mlist" aria-hidden="true">
+    <div class="mlist__hd">
+      <span class="mlist__ttl">Playlist // 歌单</span>
+      <button class="mlist__close" type="button" id="mlistClose" aria-label="关闭歌单">✕</button>
+    </div>
+    <div class="mlist__tabs" id="mlistTabs"></div>
+    <ol class="mlist__ol" id="mlistOl"></ol>
+  </div>
+
+</div>
+
+<!-- ══════════ 03.2 EDITING（移动版剪辑作品集）══════════
+     和桌面版共用 assets/clips/ 那 18 张图，但交互按手指重做：
+       ① 第一组 9 张正片仍是滚动堆叠 —— 竖着划本来就是手机上最自然的手势；
+       ② 第二组 9 张片尾改成「横向划」为主（拖拽阈值 + 快扫判定），不再依赖滚轮；
+       ③ 目录做成顶部横向条，手指左右划着挑，当前那条自动带进可视区；
+       ④ 只有进了第三屏才真正注入 9 张图，避免和 3D 争开局的内存。 -->
+<div class="mclips" id="clips" role="dialog" aria-modal="true" aria-label="剪辑 · 作品集">
+
+  <header class="mclips__head">
+    <button class="mclips__close" type="button" id="clipsClose" aria-label="关闭剪辑面板">✕</button>
+    <div class="phead__idx">03.2 / Editing</div>
+    <h2 class="phead__title chrome">EDITING</h2>
+    <p class="phead__zh">剪辑</p>
+    <p class="mclips__subt">在电视台当牛马的这些年</p>
+  </header>
+
+  <nav class="mclips__nav" id="clipsNav" aria-label="作品目录"></nav>
+
+  <div class="mclips__stage" id="clipsStage">
+    <div class="cstack" id="cstack"></div>
+
+    <section class="pilesec" id="pileSec">
+      <div class="pilesec__hd">
+        <span class="pilesec__k">Credits / 片尾</span>
+        <p class="pilesec__t">还有一些片尾</p>
+      </div>
+
+      <!-- 一条不停向左流动的卡片带：同一批卡片首尾相接，两侧用渐变淡出，
+           看着就是一挂转不停的走马灯。手指可以拖，松手后惯性衰减、再回到匀速。 -->
+      <div class="caro" id="caro" role="group" aria-label="片尾走马灯">
+        <div class="caro__belt" id="caroBelt"></div>
+      </div>
+
+      <div class="caro__bar">
+        <button class="caro__btn" type="button" id="caroPlay" aria-label="暂停滚动">暂停滚动</button>
+        <span class="caro__num" id="caroNum">01 / 09</span>
+      </div>
+    </section>
+  </div>
+
+</div>
 
 <!-- ══════════ 移动版：返回桌面版 ══════════ -->
 <div class="mfoot"><a href="index.html?desktop=1">← 切换桌面版</a></div>
@@ -3622,8 +4254,8 @@ function makeEnvMap(renderer){
         if (res && res.error) throw res.error;
         shared++;
         if (shTxt) { shTxt.value = ''; shTxt.focus(); }
-        if (shSend) shSend.disabled = false;
-        shSay('已送达 ' + shared + ' 条 · 想再安利一个可以继续写', 'is-ok');
+  if (shSend) shSend.disabled = false;
+    shSay('已送达 ' + shared + ' 条 · 想再安利一个可以继续写', 'is-ok');
       })
       .catch(function(err){
         var code = err && (err.code || (err.details && err.details.code));
@@ -3702,10 +4334,1594 @@ function makeEnvMap(renderer){
       .catch(function(){ renderRecos([]); });
   }
 
+  /* 移动版唱机（index-mobile 的 MUSIC 面板）里的「分享你的宝藏歌曲」按钮
+     复用这里的同一个弹窗 —— 对外只暴露一个函数，不重复实现一套提交逻辑。 */
+  window.__zyOpenShare = openShare;
+
   if (isAdminEntry()) openAdm();
 
   /* 首次进入页面就提示一下表单是否可用 */
   if (!cloud && elLog) log('CLOUD OFFLINE — 提交通道未就绪', 'is-err');
+})();
+</script>
+
+<script>
+/* ============================================================
+   INTERESTS NET（移动版）—— 兴趣爱好页专属的神经网络节点图
+   ------------------------------------------------------------
+   画法与桌面版完全一致（黄铜/青绿连线 + 缓慢漂移 + 随机放电 + 五簇呼吸），
+   只有构图不同：手机竖版是「上下错落的之字形」，而不是桌面的正五边形——
+   正五边形在 9:19.5 的屏上会被压成一条扁带，上下各空一大块。
+
+   簇半径 HUB_R 随视口短边自动收缩（38~60px，桌面版是固定 84px），
+   节点密度和标签字号同步降一档，避免小屏上糊成一团。
+
+   改参：INTENSITY 调浓淡，HUB_SCALE 调簇大小，SPOTS 里的 rx / ry 调五个簇的位置。
+   ============================================================ */
+(function(){
+  'use strict';
+
+  var cv   = document.getElementById('interestNet');
+  var wrap = document.getElementById('iLabels');
+  if (!cv || !wrap) return;
+  var ctx = cv.getContext('2d');
+  if (!ctx) return;
+  var page = cv.closest ? cv.closest('.page') : null;
+  if (!page) return;
+
+  /* ---------- 五个兴趣 ----------
+     rx / ry 是簇心在屏幕上的相对位置（0~1）。竖版用之字形：
+     右上 → 左 → 右 → 左 → 右，把整条竖向画幅铺满，间距大致均匀。
+     可用画幅的四条边（动坐标前先看这里）：
+       上 —— 左上角页眉约占 y 74~160（随 title 字号变化），簇顶还会往上探约 45px；
+       下 —— 底部让位给分页器（约 40px 高），标签底按 H-80 收边；
+       左/右 —— 标签是居中对齐的，簇心别超过 0.24~0.78，否则标签会顶出安全边。
+     颜色只在这里定义一份：hex 给 CSS 标签的光晕用，rgb 给 canvas 画半透明用。 */
+  var SPOTS = [
+    { k:'tennis', rx:0.620, ry:0.270, hex:'#3fb98d', rgb:'63,185,141'  },  // 青绿 · 上
+    { k:'music',  rx:0.240, ry:0.405, hex:'#5f96dd', rgb:'95,150,221'  },  // 蓝 · 左
+    { k:'edit',   rx:0.760, ry:0.515, hex:'#9a80d6', rgb:'154,128,214' },  // 紫 · 右
+    { k:'race',   rx:0.270, ry:0.640, hex:'#dc7f9f', rgb:'220,127,159' },  // 粉 · 左下
+    { k:'film',   rx:0.630, ry:0.755, hex:'#d8a63a', rgb:'216,166,58'  }   // 琥珀 · 右下
+  ];
+
+  /* ---------- 可调参数 ---------- */
+  var INTENSITY     = 1.0;     // 总浓淡：0.5 减半、1.5 加浓
+  var NODE_PER_AREA = 11000;   // 每多少 px² 放一个背景节点，数字越小越密
+  var NODE_MIN      = 26;
+  var NODE_MAX      = 62;
+  var HUB_SCALE     = 0.115;   // 簇半径 = 视口短边 × 此值（再夹到 38~60）
+  var HUB_MEMBERS   = 4;       // 每个簇除了中心主节点外再挂几个小节点
+  var HUB_GLOW_BASE = 30;      // 簇心光晕基准半径 px
+  var LINK_RATIO    = 0.34;    // 连线阈值 = 屏幕短边 × 此值
+  var LINK_FALLOFF  = 1.5;     // 连线随距离的衰减
+  var DRIFT_SPD     = 1.0;     // 簇内节点绕着簇心轻摆的速度倍率
+  var BREATH        = 0.85;    // 呼吸频率 rad/s —— 约 7 秒一个来回
+  var BREATH_AMP    = 0.38;    // 呼吸幅度
+  var MAX_PULSE     = 8;       // 同屏最多几道信号（小屏少一点，省电）
+
+  /* ---------- 取自站点调色板 ---------- */
+  var BRASS = '201,160,106';   // 做旧黄铜（背景节点与连线的底色）
+  var TEAL  = '109,143,134';   // 发暗青绿（少量穿插）
+  var CORE  = '255,246,228';   // 信号亮芯
+  var TAU   = Math.PI * 2;
+
+  var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  var W = 0, H = 0, DPR = 1, LINK = 130, HUB_R = 45, HUB_GLOW = 30;
+  var nodes = [], hubs = [], pulses = [], labels = {};
+  var raf = 0, frame = 0, rt = 0, enabled = false;
+  var myIdx = -1;
+
+  function rnd(a, b){ return a + Math.random() * (b - a); }
+  function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+
+  Array.prototype.forEach.call(wrap.querySelectorAll('.ilabel'), function(el){
+    var k = el.getAttribute('data-k');
+    if (k) labels[k] = el;
+  });
+
+  /* ---------- 布点 ---------- */
+  function build(){
+    nodes = []; hubs = []; pulses = []; frame = 0;
+
+    /* 尺寸相关先算：下面布簇成员时就要用 HUB_R，算晚了那一帧会用上一屏的旧半径 */
+    LINK     = Math.min(Math.max(Math.min(W, H) * LINK_RATIO, 96), 190);
+    HUB_R    = Math.round(clamp(Math.min(W, H) * HUB_SCALE, 38, 60));
+    HUB_GLOW = Math.round(HUB_R * 0.66);
+
+    /* 1) 背景自由节点 */
+    var n = Math.round((W * H) / NODE_PER_AREA);
+    n = Math.max(NODE_MIN, Math.min(NODE_MAX, n));
+    for (var i = 0; i < n; i++){
+      nodes.push({
+        x: Math.random() * W, y: Math.random() * H,
+        vx: rnd(-0.12, 0.12), vy: rnd(-0.12, 0.12),
+        r: rnd(1.3, 2.4),
+        teal: Math.random() < 0.22,
+        free: true, hub: null, core: false
+      });
+    }
+
+    /* 2) 五个簇 */
+    SPOTS.forEach(function(s, si){
+      var h = {
+        k: s.k, rgb: s.rgb, rx: s.rx, ry: s.ry,
+        x: W * s.rx, y: H * s.ry,
+        ph: si / SPOTS.length * TAU,
+        b: 0.5, hot: 0
+      };
+      hubs.push(h);
+      for (var m = 0; m <= HUB_MEMBERS; m++){
+        var core = (m === 0);
+        var ang  = core ? 0 : Math.random() * TAU;
+        var rad  = core ? 0 : rnd(HUB_R * 0.38, HUB_R);
+        nodes.push({
+          x: h.x, y: h.y,
+          free: false, hub: h, core: core,
+          ox: Math.cos(ang) * rad,
+          oy: Math.sin(ang) * rad * 0.82,
+          amp: core ? 0 : rnd(2, 5),
+          w1: rnd(0.22, 0.62), w2: rnd(0.22, 0.62),
+          p1: Math.random() * TAU, p2: Math.random() * TAU,
+          r:  core ? 3.6 : rnd(1.6, 2.7),
+          teal: false
+        });
+      }
+    });
+  }
+
+  /* ---------- 标签：挂在簇心正下方，并做边界收边 ---------- */
+  function layout(){
+    for (var i = 0; i < hubs.length; i++){
+      hubs[i].x = W * hubs[i].rx;
+      hubs[i].y = H * hubs[i].ry;
+    }
+    var off = Math.round(HUB_R * 0.95);
+    var safeRight  = W - 16;
+    var safeBottom = H - 80;      // 底部让位给分页器
+
+    SPOTS.forEach(function(s){
+      var el = labels[s.k];
+      if (!el) return;
+      var half = (el.offsetWidth  || 56) / 2;
+      var hgt  = (el.offsetHeight || 36);
+
+      var cx = W * s.rx;
+      if (cx + half > safeRight) cx = safeRight - half;
+      if (cx - half < 14)        cx = half + 14;
+
+      var cy = H * s.ry + off;
+      if (cy + hgt > safeBottom) cy = safeBottom - hgt;
+
+      el.style.setProperty('--x', cx.toFixed(1) + 'px');
+      el.style.setProperty('--y', cy.toFixed(1) + 'px');
+      el.style.setProperty('--c', s.hex);
+    });
+  }
+
+  /* ---------- 随机放电 ---------- */
+  function spawnPulse(){
+    if (pulses.length >= MAX_PULSE || nodes.length < 2) return;
+    var ai = (Math.random() * nodes.length) | 0;
+    var a  = nodes[ai];
+    var best = -1, cnt = 0;
+    for (var i = 0; i < nodes.length; i++){
+      if (i === ai) continue;
+      var dx = nodes[i].x - a.x, dy = nodes[i].y - a.y;
+      if (dx * dx + dy * dy < LINK * LINK){ cnt++; if (Math.random() < 1 / cnt) best = i; }
+    }
+    if (best < 0) return;
+    var b = nodes[best];
+    var owner = a.hub || b.hub;
+    pulses.push({ a: a, b: b, p: 0, sp: rnd(0.012, 0.022), rgb: owner ? owner.rgb : BRASS });
+  }
+
+  /* ---------- 每帧推进 ---------- */
+  function step(){
+    frame++;
+    var tSec   = frame / 60;
+    var tDrift = tSec * DRIFT_SPD;
+
+    for (var i = 0; i < nodes.length; i++){
+      var n = nodes[i];
+      if (n.free){
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < -20) n.x = W + 20; else if (n.x > W + 20) n.x = -20;
+        if (n.y < -20) n.y = H + 20; else if (n.y > H + 20) n.y = -20;
+      } else {
+        n.x = n.hub.x + n.ox + Math.sin(tDrift * n.w1 + n.p1) * n.amp;
+        n.y = n.hub.y + n.oy + Math.cos(tDrift * n.w2 + n.p2) * n.amp;
+      }
+    }
+    for (var q = 0; q < hubs.length; q++){
+      hubs[q].b  = 0.5 + 0.5 * Math.sin(tSec * BREATH + hubs[q].ph);
+      /* 触屏没有 hover：hot 只由「点中过」点亮，然后自己缓慢衰减 */
+      hubs[q].hot *= 0.965;
+      var lab = labels[hubs[q].k];
+      if (lab) lab.classList.toggle('is-hot', hubs[q].hot > 0.42);
+    }
+    if (frame % 30 === 0 || Math.random() < 0.015) spawnPulse();
+    for (var k = pulses.length - 1; k >= 0; k--){
+      var pu = pulses[k];
+      pu.p += pu.sp;
+      var ax = pu.b.x - pu.a.x, ay = pu.b.y - pu.a.y;
+      if (pu.p > 1 || ax * ax + ay * ay > LINK * LINK * 1.7) pulses.splice(k, 1);
+    }
+  }
+
+  /* ---------- 绘制 ---------- */
+  function draw(){
+    ctx.clearRect(0, 0, W, H);
+    var i, j;
+
+    ctx.lineWidth   = 1;
+    ctx.strokeStyle = 'rgb(' + BRASS + ')';
+    for (i = 0; i < nodes.length; i++){
+      var a = nodes[i];
+      if (!a.free) continue;
+      for (j = i + 1; j < nodes.length; j++){
+        var b  = nodes[j];
+        if (!b.free) continue;
+        var d2 = (b.x - a.x) * (b.x - a.x) + (b.y - a.y) * (b.y - a.y);
+        if (d2 > LINK * LINK) continue;
+        var al = Math.pow(1 - Math.sqrt(d2) / LINK, LINK_FALLOFF) * 0.85 * INTENSITY;
+        if (al < 0.004) continue;
+        ctx.globalAlpha = al > 1 ? 1 : al;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      }
+    }
+
+    for (var h = 0; h < hubs.length; h++){
+      var hub   = hubs[h];
+      var lum   = 1 - BREATH_AMP / 2 + hub.b * BREATH_AMP;
+      var boost = lum * (1 + hub.hot * 1.5) * INTENSITY;
+      ctx.strokeStyle = 'rgb(' + hub.rgb + ')';
+      for (i = 0; i < nodes.length; i++){
+        var na = nodes[i];
+        if (na.free || na.hub !== hub) continue;
+        for (j = 0; j < nodes.length; j++){
+          var nb = nodes[j];
+          if (nb === na) continue;
+          var e2 = (nb.x - na.x) * (nb.x - na.x) + (nb.y - na.y) * (nb.y - na.y);
+          if (e2 > LINK * LINK) continue;
+          var ea = Math.pow(1 - Math.sqrt(e2) / LINK, LINK_FALLOFF) * 0.9 * boost;
+          if (ea < 0.004) continue;
+          ctx.globalAlpha = ea > 1 ? 1 : ea;
+          ctx.beginPath(); ctx.moveTo(na.x, na.y); ctx.lineTo(nb.x, nb.y); ctx.stroke();
+        }
+      }
+    }
+
+    ctx.fillStyle = 'rgb(' + BRASS + ')';
+    for (i = 0; i < nodes.length; i++){
+      var nf = nodes[i];
+      if (!nf.free || nf.teal) continue;
+      ctx.globalAlpha = 0.34 * INTENSITY;
+      ctx.beginPath(); ctx.arc(nf.x, nf.y, nf.r, 0, TAU); ctx.fill();
+    }
+    ctx.fillStyle = 'rgb(' + TEAL + ')';
+    for (i = 0; i < nodes.length; i++){
+      var nt = nodes[i];
+      if (!nt.free || !nt.teal) continue;
+      ctx.globalAlpha = 0.26 * INTENSITY;
+      ctx.beginPath(); ctx.arc(nt.x, nt.y, nt.r, 0, TAU); ctx.fill();
+    }
+
+    for (var q = 0; q < hubs.length; q++){
+      var hu   = hubs[q];
+      var feed = 0.62 + 0.38 * hu.b + hu.hot * 0.6;
+      ctx.fillStyle = 'rgb(' + hu.rgb + ')';
+      for (i = 0; i < nodes.length; i++){
+        var nm = nodes[i];
+        if (nm.free || nm.hub !== hu || nm.core) continue;
+        ctx.globalAlpha = Math.min(0.6, 0.3 * feed * INTENSITY);
+        ctx.beginPath(); ctx.arc(nm.x, nm.y, nm.r, 0, TAU); ctx.fill();
+      }
+      var gr = HUB_GLOW + hu.b * 8 + hu.hot * 20;
+      var ga = Math.min(0.58, (0.21 + 0.10 * hu.b + 0.26 * hu.hot) * INTENSITY);
+      if (gr > 1 && ga > 0.003){
+        var glow = ctx.createRadialGradient(hu.x, hu.y, 0, hu.x, hu.y, gr);
+        glow.addColorStop(0,    'rgba(' + hu.rgb + ',' +  ga.toFixed(3)        + ')');
+        glow.addColorStop(0.24, 'rgba(' + hu.rgb + ',' + (ga * 0.62).toFixed(3) + ')');
+        glow.addColorStop(0.5,  'rgba(' + hu.rgb + ',' + (ga * 0.28).toFixed(3) + ')');
+        glow.addColorStop(0.76, 'rgba(' + hu.rgb + ',' + (ga * 0.08).toFixed(3) + ')');
+        glow.addColorStop(1,    'rgba(' + hu.rgb + ',0)');
+        ctx.globalAlpha = 1;
+        ctx.fillStyle  = glow;
+        ctx.beginPath(); ctx.arc(hu.x, hu.y, gr, 0, TAU); ctx.fill();
+        ctx.fillStyle  = 'rgb(' + hu.rgb + ')';
+      }
+      ctx.globalAlpha = Math.min(0.92, (0.55 + 0.20 * hu.b + 0.28 * hu.hot) * INTENSITY);
+      ctx.beginPath(); ctx.arc(hu.x, hu.y, 3.6 + hu.hot * 1.4, 0, TAU); ctx.fill();
+      ctx.fillStyle = 'rgb(' + CORE + ')';
+      ctx.globalAlpha = Math.min(0.9, (0.32 + 0.24 * hu.b + 0.3 * hu.hot) * INTENSITY);
+      ctx.beginPath(); ctx.arc(hu.x, hu.y, 1.6 + hu.hot * 0.6, 0, TAU); ctx.fill();
+    }
+
+    for (var p = 0; p < pulses.length; p++){
+      var pu   = pulses[p];
+      var fade = Math.sin(pu.p * Math.PI) * INTENSITY;
+      if (fade <= 0) continue;
+      var px = pu.a.x + (pu.b.x - pu.a.x) * pu.p;
+      var py = pu.a.y + (pu.b.y - pu.a.y) * pu.p;
+      ctx.globalAlpha = 1;
+      ctx.beginPath(); ctx.arc(px, py, 5.4, 0, TAU);
+      ctx.fillStyle = 'rgba(' + pu.rgb + ',' + (0.14 * fade).toFixed(3) + ')';
+      ctx.fill();
+      ctx.beginPath(); ctx.arc(px, py, 1.6, 0, TAU);
+      ctx.fillStyle = 'rgba(' + CORE + ',' + (0.78 * fade).toFixed(3) + ')';
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function loop(){ step(); draw(); raf = window.requestAnimationFrame(loop); }
+  function stop(){ if (raf) window.cancelAnimationFrame(raf); raf = 0; }
+  function start(){
+    stop();
+    if (reduceMQ.matches){ step(); draw(); return; }   // 尊重「减弱动态效果」
+    raf = window.requestAnimationFrame(loop);
+  }
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    cv.width  = Math.round(W * DPR);
+    cv.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    build();
+    layout();
+    if (reduceMQ.matches) draw();
+  }
+  function onResize(){ window.clearTimeout(rt); rt = window.setTimeout(resize, 160); }
+
+  /* ---------- 切到后台就停，省电 ---------- */
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) stop(); else if (enabled) start();
+  });
+  if (reduceMQ.addEventListener) reduceMQ.addEventListener('change', function(){
+    if (enabled) start();
+  });
+
+  /* ---------- 只在这一页 active 时跑 ---------- */
+  (function(){
+    var all = document.querySelectorAll('.page');
+    for (var i = 0; i < all.length; i++){ if (all[i] === page){ myIdx = i; break; } }
+  })();
+  function applyPage(idx){
+    enabled = (idx === myIdx);
+    if (enabled){
+      layout();
+      window.setTimeout(function(){ if (enabled) layout(); }, 700);
+      start();
+    } else {
+      stop();
+      if (W && H) ctx.clearRect(0, 0, W, H);
+    }
+  }
+  window.addEventListener('page:change', function(e){
+    var i = (e && e.detail && typeof e.detail.index === 'number') ? e.detail.index : 0;
+    applyPage(i);
+  });
+
+  resize();
+  window.addEventListener('resize', onResize, { passive: true });
+
+  var idx0 = 0;
+  var pgs  = document.querySelectorAll('.page');
+  for (var pi = 0; pi < pgs.length; pi++){
+    if (pgs[pi].classList.contains('is-active')){ idx0 = pi; break; }
+  }
+  applyPage(idx0);
+
+  /* ---------- 点按：命中某个簇就点亮它，命中「音乐」簇则进音乐面板 ----------
+     触屏没有 hover，所以 hot 由点按点亮（step 里每帧缓慢衰减）。
+     判定半径取簇半径的 1.35 倍 —— 手指比鼠标粗，判定圈要给大一点。 */
+  function hitTest(x, y){
+    var best = -1, bd = Infinity;
+    for (var i = 0; i < hubs.length; i++){
+      var dx = x - hubs[i].x, dy = y - hubs[i].y;
+      var d2 = dx * dx + dy * dy;
+      if (d2 < bd){ bd = d2; best = i; }
+    }
+    if (best < 0) return null;
+    var r = HUB_R * 1.35;
+    return (bd <= r * r) ? hubs[best] : null;
+  }
+  page.addEventListener('click', function(e){
+    if (!page.classList.contains('is-active')) return;
+    var r = page.getBoundingClientRect();
+    var hub = hitTest(e.clientX - r.left, e.clientY - r.top);
+    if (!hub) return;
+    hub.hot = 1;
+    if (hub.k === 'music' && window.__zyMusicOpen) window.__zyMusicOpen();
+    if (hub.k === 'edit'  && window.__zyClipsOpen) window.__zyClipsOpen();
+  });
+
+  /* 「音乐」这枚标签本身也是入口：点它直接进音乐面板 */
+  var musicLabel = labels['music'];
+  if (musicLabel){
+    musicLabel.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (window.__zyMusicOpen) window.__zyMusicOpen();
+    });
+  }
+
+  /* 「剪辑」同理：点簇或点标签都进剪辑作品集 */
+  var editLabel = labels['edit'];
+  if (editLabel){
+    editLabel.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (window.__zyClipsOpen) window.__zyClipsOpen();
+    });
+    editLabel.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+        e.preventDefault(); e.stopPropagation();
+        if (window.__zyClipsOpen) window.__zyClipsOpen();
+      }
+    });
+  }
+
+  /* 对外只开一个口子：音乐面板（或自动化脚本）要现取簇心坐标 */
+  window.__zyInterestHub = function(k){
+    for (var i = 0; i < hubs.length; i++){
+      if (hubs[i].k === k) return { x: hubs[i].x, y: hubs[i].y, r: HUB_R };
+    }
+    return null;
+  };
+})();
+</script>
+
+<script>
+/* ============================================================
+   MUSIC DECK（移动版竖式唱机）
+   ------------------------------------------------------------
+   与桌面版共用同一套音源与播放逻辑（整首 > 30 秒片段 > 平台跳转），
+   只是交互按手机重做：
+     · 点转盘（放唱片的那块空白处）→ 底部抽屉式唱片箱滑上来；
+     · 点一张唱片 → 抽屉自动收起、唱片落盘并立刻开播；
+     · 控制条右侧「三条横线」→ 文字版歌单，点一行直接切歌。
+   桌面版的「拖拽」在手机上没有意义，所以整段删掉，改成点按。
+
+   音源四级降级：src（整首，本地文件）> pv（30 秒片段，本地文件）> ext（官方平台跳转）> 无。
+   ============================================================ */
+(function(){
+  'use strict';
+
+  /* ---------- 曲库（与桌面版 index.html 的 CATS 完全一致，改歌请两边一起改） ---------- */
+  var CATS = [
+    { name:'我最爱', list:[
+      { t:'Goodbye, Apathy',      a:'OneRepublic',         cover:'01-goodbye-apathy.jpg',       src:'', pv:'01-goodbye-apathy-30s.m4a' },
+      { t:'Waking Up',            a:'OneRepublic',         cover:'02-waking-up.jpg',            src:'', pv:'02-waking-up-30s.m4a' },
+      { t:'Au Revoir',            a:'OneRepublic',         cover:'03-au-revoir.jpg',            src:'', pv:'03-au-revoir-30s.m4a' },
+      { t:'I Lived',              a:'OneRepublic',         cover:'04-i-lived.jpg',              src:'', pv:'04-i-lived-30s.m4a' },
+      { t:'Future Looks Good',    a:'OneRepublic',         cover:'05-future-looks-good.jpg',    src:'', pv:'05-future-looks-good-30s.m4a' },
+      { t:'Someday',              a:'OneRepublic',         cover:'06-someday.jpg',              src:'', pv:'06-someday-30s.m4a' },
+      { t:'Hands Held High',      a:'Linkin Park',         cover:'07-hands-held-high.jpg',      src:'', pv:'07-hands-held-high-30s.m4a' },
+      { t:'One More Light',       a:'Linkin Park',         cover:'08-one-more-light.jpg',       src:'', pv:'08-one-more-light-30s.m4a' },
+      { t:'Final Masquerade',     a:'Linkin Park',         cover:'09-final-masquerade.jpg',     src:'', pv:'09-final-masquerade-30s.m4a' },
+      { t:'Iridescent',           a:'Linkin Park',         cover:'57-iridescent.jpg',           src:'', pv:'57-iridescent-30s.m4a' },
+      { t:'Levitate',             a:'Imagine Dragons',     cover:'10-levitate.jpg',             src:'', pv:'10-levitate-30s.m4a' },
+      { t:'Wrecked',              a:'Imagine Dragons',     cover:'41-wrecked.jpg',              src:'', pv:'41-wrecked-30s.m4a' },
+      { t:'Yellow',               a:'Coldplay',            cover:'42-yellow.jpg',               src:'', pv:'42-yellow-30s.m4a' },
+      { t:'My Heart Is Open',     a:'Maroon 5',            cover:'11-my-heart-is-open.jpg',     src:'', pv:'11-my-heart-is-open-30s.m4a' },
+      { t:'Young Blood', a:'The Naked and Famous', cover:'64-young-blood-remix.jpg', src:'young-blood.mp3', ext:[['网易云','https://music.163.com/song?id=19538464'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/002o7gtj2sZcHP']] },
+      { t:'Some Nights',          a:'fun.',                cover:'13-some-nights.jpg',          src:'', pv:'13-some-nights-30s.m4a' },
+      { t:'If You Ever Come Back', a:'The Script',          cover:'14-if-you-ever-come-back.jpg', src:'', pv:'14-if-you-ever-come-back-30s.m4a' },
+      { t:'Youngblood',           a:'5 Seconds of Summer', cover:'15-youngblood.jpg',           src:'', pv:'15-youngblood-30s.m4a' },
+      { t:'Pieces',               a:'Sum 41',              cover:'16-pieces.jpg',               src:'', pv:'16-pieces-30s.m4a' },
+      { t:'All Time Low',         a:'The Wanted',          cover:'17-all-time-low.jpg',         src:'', pv:'17-all-time-low-30s.m4a' },
+      { t:'Heart Hope',           a:'Oh Wonder',           cover:'58-heart-hope.jpg',           src:'', pv:'58-heart-hope-30s.m4a' },
+      { t:'All My Life',          a:'WILD',                cover:'59-all-my-life.jpg',          src:'', pv:'59-all-my-life-30s.m4a' }
+    ]},
+    { name:'我超爱', list:[
+      { t:'Dear Boy',              a:'Avicii',                                       cover:'18-dear-boy.jpg',            src:'', pv:'18-dear-boy-30s.m4a' },
+      { t:'Wake Me Up',            a:'Avicii',                                       cover:'43-wake-me-up.jpg',          src:'', pv:'43-wake-me-up-30s.m4a' },
+      { t:'Language',              a:'Porter Robinson',                              cover:'19-language.jpg',            src:'', pv:'19-language-30s.m4a' },
+      { t:'High on Life',          a:'Martin Garrix',                                cover:'20-high-on-life.jpg',        src:'', pv:'20-high-on-life-30s.m4a' },
+      { t:'Higher',                a:'Tobu',                                         cover:'22-higher.jpg',              src:'', pv:'22-higher-30s.m4a' },
+      { t:'Worlds Apart',          a:'Seven Lions',                                  cover:'21-worlds-apart.jpg',        src:'', pv:'21-worlds-apart-30s.m4a' },
+      { t:'Rush Over Me',          a:'Seven Lions, ILLENIUM, Said The Sky & HALIENE', cover:'52-rush-over-me.jpg',        src:'', pv:'52-rush-over-me-30s.m4a' },
+      { t:'Afterlife',             a:'ILLENIUM',                                     cover:'53-afterlife.jpg',           src:'', pv:'53-afterlife-30s.m4a' },
+      { t:'Freeze',                a:'Kygo',                                         cover:'54-freeze.jpg',              src:'', pv:'54-freeze-30s.m4a' },
+      { t:'Firestone',             a:'Kygo',                                         cover:'23-firestone.jpg',           src:'', pv:'23-firestone-30s.m4a' },
+      { t:'Riptide',               a:'The Chainsmokers',                             cover:'55-riptide.jpg',             src:'', pv:'55-riptide-30s.m4a' },
+      { t:'All We Know',           a:'The Chainsmokers',                             cover:'24-all-we-know.jpg',         src:'', pv:'24-all-we-know-30s.m4a' },
+      { t:'Crossroad',             a:'Au5',                                          cover:'25-crossroad.jpg',           src:'', pv:'25-crossroad-30s.m4a' },
+      { t:'Calling (Lose My Mind)', a:'Alesso',                                       cover:'26-calling-lose-my-mind.jpg', src:'', pv:'26-calling-lose-my-mind-30s.m4a' },
+      { t:'You Were Loved',       a:'Gryffin & OneRepublic',                           cover:'60-you-were-loved.jpg',      src:'', pv:'60-you-were-loved-30s.m4a' },
+      { t:'S.T.O.P',              a:'David Guetta feat. Ryan Tedder',                 cover:'61-stop.jpg',                src:'', pv:'61-stop-30s.m4a' }
+    ]},
+    { name:'我巨爱', list:[
+      { t:'Purpose',              a:'Justin Bieber',                 cover:'27-purpose.jpg',               src:'', pv:'27-purpose-30s.m4a' },
+      { t:'YUKON',                a:'Justin Bieber',                 cover:'28-yukon.jpg',                 src:'', pv:'28-yukon-30s.m4a' },
+      { t:'RUNNING',              a:'NF',                            cover:'62-running.jpg',               src:'', pv:'62-running-30s.m4a' },
+      { t:'FEAR',                 a:'NF',                            cover:'63-fear.jpg',                  src:'', pv:'63-fear-30s.m4a' },
+      { t:'Good Old Days',        a:'Macklemore',                    cover:'29-good-old-days.jpg',         src:'', pv:'29-good-old-days-30s.m4a' },
+      { t:'BLUE',                 a:'Troye Sivan',                   cover:'30-blue.jpg',                  src:'', pv:'30-blue-30s.m4a' },
+      { t:'Family Business',      a:'Ye',                            cover:'31-family-business.jpg',       src:'', pv:'31-family-business-30s.m4a' },
+      { t:'Violent Crimes',       a:'Ye',                            cover:'44-violent-crimes.jpg',        src:'', pv:'44-violent-crimes-30s.m4a' },
+      { t:'DtMF',                 a:'Bad Bunny',                     cover:'45-dtmf.jpg',                  src:'', pv:'45-dtmf-30s.m4a', ext:[['网易云','https://music.163.com/song?id=2663295776'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/003ySxXF17QU5T']] },
+      { t:'La Plena (W Sound 05)', a:'W Sound/Beéle/Ovy On the Drums', cover:'46-la-plena.jpg',              src:'', ext:[['网易云','https://music.163.com/song?id=2676879507'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/001FKudf0b2ZKX']] },
+      { t:'Rewrite the Stars',    a:'Zac Efron & Zendaya',           cover:'47-rewrite-the-stars.jpg',     src:'', pv:'47-rewrite-the-stars-30s.m4a' },
+      { t:'You Will Be Found',    a:'Ben Platt',                     cover:'48-you-will-be-found.jpg',     src:'', pv:'48-you-will-be-found-30s.m4a' },
+      { t:'Wait for It',          a:'Leslie Odom, Jr.',              cover:'49-wait-for-it.jpg',           src:'', pv:'49-wait-for-it-30s.m4a' },
+      { t:'Il aurait suffi',      a:'Côme, Julie Fournier & Haylen', cover:'50-il-aurait-suffi.jpg',       src:'il-aurait-suffi.mp3', ext:[['网易云','https://music.163.com/song?id=428649328'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/000pglYE3t2Ono']] },
+      { t:'迷航',                   a:'发光曲线',                          cover:'51-mihang.jpg',                src:'mi-hang.mp3', ext:[['网易云','https://music.163.com/song?id=27785104'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/000s2F8t0FVUhi']] },
+      { t:'合唱团，阴郁的夜晚',            a:'v是兔子wishtoday',                 cover:'33.jpg',                       src:'he-chang-tuan.mp3', ext:[['网易云','https://music.163.com/song?id=2660977445'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/001a7Zkw4DugXb']] },
+      { t:'芸芸',                   a:'吴垚滔',                           cover:'32.jpg',                       src:'yun-yun.mp3', ext:[['网易云','https://music.163.com/song?id=2747524908'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/002bAXad2HwFmt']] },
+      { t:'一般的一天',                a:'wiz_H张子豪',                      cover:'34.jpg',                       src:'yi-ban-de-yi-tian.mp3', ext:[['网易云','https://music.163.com/song?id=2054300084'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/001R2kln4OiYEk']] },
+      { t:'化身孤岛的鲸',               a:'周深',                            cover:'56-huanshen-gudao-de-jing.jpg', src:'', pv:'56-huanshen-gudao-de-jing-30s.m4a' },
+      { t:'借给我一盒火柴',              a:'周深',                            cover:'35.jpg',                       src:'huo-chai.mp3', ext:[['网易云','https://music.163.com/song?id=2711662982'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/003GVYJM0g1xXM']] },
+      { t:'触不可及',                 a:'周深',                            cover:'36.jpg',                       src:'chu-bu-ke-ji.mp3', ext:[['网易云','https://music.163.com/song?id=2648888545'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/002EFRnf3ekI9S']] },
+      { t:'资深庸才',                 a:'周深/王子zione',                    cover:'37.jpg',                       src:'zi-shen-yong-cai.mp3', ext:[['网易云','https://music.163.com/song?id=1492318633'],['QQ 音乐','https://y.qq.com/n/ryqq/songDetail/001JUXdc02amw5']] },
+      { t:'玫瑰少年 (Live)',          a:'周深/GAI周延',                      cover:'38-live.jpg',                  src:'', pv:'38-live-30s.m4a' },
+      { t:'如烟 (Live)',            a:'周深/五月天',                        cover:'39.jpg',                       src:'', pv:'39-30s.m4a' }
+    ]}
+  
+  ];
+
+  var deck    = document.getElementById('mdeck');
+  if (!deck) return;
+  var stage   = document.getElementById('mdeckStage');
+  var slot    = document.getElementById('mttSlot');
+  var tt      = document.getElementById('mtt');
+  var platter = document.getElementById('mttPlatter');
+  var recEl   = document.getElementById('mttRecord');
+  var discEl  = document.getElementById('mttDisc');
+  var labelEl = document.getElementById('mttLabel');
+  var nowEl   = document.getElementById('mttNow');
+  var barEl   = document.getElementById('mttBar');
+  var timeEl  = document.getElementById('mttTime');
+  var playBt  = document.getElementById('mttPlay');
+  var ejectBt = document.getElementById('mttEject');
+  var badgeEl = document.getElementById('mttBadge');
+  var linksEl = document.getElementById('mttLinks');
+  var auraEl  = document.getElementById('mttAura');
+  var hintEl  = document.getElementById('mttHint');
+  var closeBt = document.getElementById('mdeckClose');
+
+  var crateEl = document.getElementById('mcrate');
+  var maskEl  = document.getElementById('mcrateMask');
+  var cTabsEl = document.getElementById('mcrateTabs');
+  var gridEl  = document.getElementById('mcrateGrid');
+  var listEl  = document.getElementById('mlist');
+  var lTabsEl = document.getElementById('mlistTabs');
+  var olEl    = document.getElementById('mlistOl');
+  var lClose  = document.getElementById('mlistClose');
+
+  var DUR   = 30;          // 30 秒片段 / 无音源时的兜底时长（秒）
+  var cur   = null;        // 当前唱片
+  var curI  = -1;          // 当前唱片在本分类里的下标
+  var curCat = -1;         // 当前唱片来自哪个分类
+  var catI  = 0;           // 当前分类
+  var state = 'idle';      // idle | playing | paused | ended | mute
+  var prog  = 0;           // 0~1
+  var tPrev = 0, raf = 0;
+  var audio = null;
+  var crateBuilt = false;  // 唱片箱第一次打开才建（省得首页白下几十张封面）
+  var mode  = 'none';      // full=整首 | clip=30 秒片段 | none=无音源
+  var cap   = 0;           // >0 = 到点即停（片段）
+  var span  = DUR;         // 进度条满格秒数
+  var fadeT = 0;
+  var fadeArmed = false;
+
+  function esc(s){
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+  function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+
+  /* ---------- 程序生成的抽象封面（没有真封面时兜底） ---------- */
+  var ART = [
+    ['#5f96dd', '#17263a'], ['#dc7f9f', '#301d26'], ['#3fb98d', '#14291f'],
+    ['#d8a63a', '#2b2213'], ['#9a80d6', '#221c34'], ['#6d8f86', '#182423']
+  ];
+  function hash(s){
+    var h = 2166136261, i;
+    for (i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = (h * 16777619) >>> 0; }
+    return h >>> 0;
+  }
+  function coverArt(seed){
+    var h = hash(seed);
+    var p = ART[h % ART.length];
+    var a = p[0], bg = p[1];
+    var m = Math.floor(h / 7) % 4, i, x, y;
+    var g = '<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">' +
+            '<rect width="100" height="100" fill="' + bg + '"/>';
+    if (m === 0){
+      var cx = 30 + (h % 36), cy = 30 + (Math.floor(h / 11) % 36);
+      g += '<circle cx="' + cx + '" cy="' + cy + '" r="30" fill="none" stroke="' + a + '" stroke-width="7"/>' +
+           '<circle cx="' + cx + '" cy="' + cy + '" r="14" fill="' + a + '"/>';
+    } else if (m === 1){
+      for (i = -2; i < 7; i++){
+        g += '<rect x="' + (i * 22 + (h % 9) - 20) + '" y="-20" width="9" height="150" fill="' + a +
+             '" opacity="' + (0.22 + ((i + 3) % 3) * 0.3).toFixed(2) + '" transform="rotate(18 50 50)"/>';
+      }
+    } else if (m === 2){
+      for (y = 0; y < 5; y++) for (x = 0; x < 5; x++){
+        if (((h >>> (x + y * 5)) & 1) === 0) continue;
+        g += '<circle cx="' + (12 + x * 19) + '" cy="' + (12 + y * 19) + '" r="' +
+             (2.5 + ((h >>> (x * 3 + y)) & 3)) + '" fill="' + a + '"/>';
+      }
+    } else {
+      g += '<rect x="10" y="54" width="80" height="28" fill="' + a + '" opacity=".85"/>' +
+           '<circle cx="' + (26 + (h % 46)) + '" cy="34" r="19" fill="' + a + '"/>';
+    }
+    g += '<rect x="0.5" y="0.5" width="99" height="99" fill="none" stroke="rgba(230,236,238,.12)"/></svg>';
+    return g;
+  }
+  function artHTML(it){
+    return it.cover
+      ? '<img src="assets/covers/' + esc(it.cover) + '" alt="">'
+      : coverArt(it.t + '|' + it.a);
+  }
+
+  /* ---------- 三个板块各一个主题色 ---------- */
+  var TINT = [
+    ['#b4623a', 'rgba(180,98,58,.20)', 'rgba(180,98,58,.46)'],   // 我最爱
+    ['#5f96dd', 'rgba(95,150,221,.20)', 'rgba(95,150,221,.46)'], // 我超爱
+    ['#3fb98d', 'rgba(63,185,141,.20)', 'rgba(63,185,141,.46)']  // 我巨爱
+  ];
+  function applyTint(){
+    var t = TINT[catI] || TINT[0];
+    deck.style.setProperty('--accent', t[0]);
+    deck.style.setProperty('--accent-glow', t[1]);
+    deck.style.setProperty('--accent-line', t[2]);
+  }
+
+  /* ---------- 唱片外圈跟着专辑封面走 ---------- */
+  function hexRGB(h){
+    var n = parseInt(h.slice(1), 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  function setDiscEdge(r, g, b){
+    var mx = Math.max(r, g, b) || 1;
+    var tgt = mx < 116 ? 116 : (mx > 150 ? 150 : mx);
+    var k = Math.max(0.6, Math.min(2.4, tgt / mx));
+    r = Math.min(255, Math.round(r * k));
+    g = Math.min(255, Math.round(g * k));
+    b = Math.min(255, Math.round(b * k));
+    var mix = function(f){
+      return 'rgb(' + Math.round(r * f) + ',' + Math.round(g * f) + ',' + Math.round(b * f) + ')';
+    };
+    discEl.style.setProperty('--rec-edge', mix(1));
+    discEl.style.setProperty('--rec-mid', mix(.68));
+    discEl.style.setProperty('--rec-out', mix(.30));
+    discEl.style.setProperty('--rec-line', 'rgba(' + r + ',' + g + ',' + b + ',.13)');
+    discEl.style.setProperty('--rec-glow', 'rgba(' + r + ',' + g + ',' + b + ',.32)');
+  }
+  function clearDiscEdge(){
+    ['--rec-edge','--rec-mid','--rec-out','--rec-line','--rec-glow'].forEach(function(k){
+      discEl.style.removeProperty(k);
+    });
+  }
+  function applyAura(it){
+    if (!auraEl) return;
+    if (it && it.cover){
+      auraEl.style.backgroundImage = 'url("assets/covers/' + it.cover.replace(/"/g, '') + '")';
+    } else if (it){
+      var p = ART[hash(it.t + '|' + it.a) % ART.length];
+      auraEl.style.backgroundImage = 'radial-gradient(circle at 50% 45%, ' + p[0] + ', ' + p[1] + ' 72%)';
+    } else {
+      auraEl.style.backgroundImage = 'none';
+    }
+    auraEl.classList.toggle('is-on', !!it);
+  }
+  function applyArtEdge(it){
+    clearDiscEdge();
+    if (it.cover){
+      var im = new Image();
+      im.onload = function(){
+        try {
+          var S = 40, c = document.createElement('canvas'), mid = (S - 1) / 2;
+          c.width = c.height = S;
+          var x = c.getContext('2d');
+          x.drawImage(im, 0, 0, S, S);
+          var d = x.getImageData(0, 0, S, S).data;
+          var r = 0, g = 0, b = 0, n = 0, i, xx, yy, dx, dy, rr;
+          for (yy = 0; yy < S; yy++){
+            for (xx = 0; xx < S; xx++){
+              dx = (xx - mid) / mid; dy = (yy - mid) / mid;
+              rr = Math.sqrt(dx * dx + dy * dy);
+              if (rr < 0.62 || rr > 0.98) continue;
+              i = (yy * S + xx) * 4;
+              r += d[i]; g += d[i + 1]; b += d[i + 2]; n++;
+            }
+          }
+          if (n) setDiscEdge(r / n, g / n, b / n);
+        } catch (e){}
+      };
+      im.src = 'assets/covers/' + it.cover;
+      return;
+    }
+    var p = hexRGB(ART[hash(it.t + '|' + it.a) % ART.length][0]);
+    setDiscEdge(p[0], p[1], p[2]);
+  }
+
+  function setNow(tip){
+    if (!cur){ nowEl.textContent = ''; return; }
+    nowEl.innerHTML = '<b>' + esc(cur.t) + '</b>' + (cur.a ? ' · ' + esc(cur.a) : '') +
+      (tip ? '<br><span class="mdeck__tip">' + tip + '</span>' : '');
+  }
+
+  /* ---------- 唱片箱 / 歌单：分类标签 ---------- */
+  function renderTabs(){
+    var hosts = [cTabsEl, lTabsEl], i, k, b;
+    for (k = 0; k < hosts.length; k++){
+      if (!hosts[k]) continue;
+      hosts[k].innerHTML = '';
+      for (i = 0; i < CATS.length; i++){
+        b = document.createElement('button');
+        b.type = 'button';
+        b.className = (hosts[k] === cTabsEl ? 'mcrate__tab' : 'mlist__tab') + (i === catI ? ' is-on' : '');
+        b.textContent = CATS[i].name;
+        b.setAttribute('data-cat', i);
+        hosts[k].appendChild(b);
+      }
+    }
+    applyTint();
+  }
+  function renderCrate(){
+    var list = CATS[catI].list, i, it, b, img, inner;
+    crateBuilt = true;
+    gridEl.innerHTML = '';
+    for (i = 0; i < list.length; i++){
+      it = list[i];
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'msleeve' + ((i === curI && catI === curCat) ? ' is-on' : '');
+      b.setAttribute('data-i', i);
+      b.setAttribute('aria-label', '试听 ' + it.t);
+      b.innerHTML =
+        '<span class="msleeve__art"><span class="msleeve__inner">' + coverArt(it.t + '|' + it.a) + '</span></span>' +
+        '<span class="msleeve__meta"><b>' + esc(it.t) + '</b><i>' + esc(it.a) + '</i></span>';
+      gridEl.appendChild(b);
+      /* 真封面：直接把 <img> 贴在生成的抽象封面之上，失败就自己摘掉 */
+      if (it.cover){
+        inner = b.querySelector('.msleeve__inner');
+        img = document.createElement('img');
+        img.setAttribute('loading', 'lazy');
+        img.setAttribute('decoding', 'async');
+        img.alt = '';
+        img.onerror = function(){ if (this.parentNode) this.parentNode.removeChild(this); };
+        img.src = 'assets/covers/' + it.cover;
+        inner.appendChild(img);
+      }
+    }
+    markPlaying();
+  }
+  function renderList(){
+    var list = CATS[catI].list, i, it, li, b;
+    olEl.innerHTML = '';
+    for (i = 0; i < list.length; i++){
+      it = list[i];
+      li = document.createElement('li');
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mlist__row' + ((i === curI && catI === curCat) ? ' is-on' : '');
+      b.setAttribute('data-i', i);
+      b.innerHTML = '<span class="mlist__n">' + (i + 1 < 10 ? '0' : '') + (i + 1) + '</span>' +
+                    '<span class="mlist__t">' + esc(it.t) + '</span>' +
+                    '<span class="mlist__a">' + esc(it.a) + '</span>';
+      li.appendChild(b);
+      olEl.appendChild(li);
+    }
+  }
+  function markPlaying(){
+    var i, mine;
+    var sv = gridEl ? gridEl.querySelectorAll('.msleeve') : [];
+    var rw = olEl ? olEl.querySelectorAll('.mlist__row') : [];
+    for (i = 0; i < sv.length; i++){
+      mine = (i === curI && catI === curCat);
+      sv[i].classList.toggle('is-on', mine);
+      sv[i].classList.toggle('is-playing', mine && state === 'playing');
+    }
+    for (i = 0; i < rw.length; i++){
+      rw[i].classList.toggle('is-on', (i === curI && catI === curCat));
+    }
+  }
+
+  /* ---------- 传动 / 进度 ---------- */
+  function fmt(sec){
+    sec = Math.max(0, Math.round(sec));
+    var m = Math.floor(sec / 60), r = sec % 60;
+    return m + ':' + (r < 10 ? '0' : '') + r;
+  }
+  function totalSec(){
+    return (audio && isFinite(audio.duration) && audio.duration > 0) ? audio.duration : span;
+  }
+  function paint(){
+    /* 站内没有音源的曲目不给假时长 —— 显示「— / —」，免得进度条空跑骗人 */
+    if (cur && mode === 'none'){
+      barEl.style.width = '0%';
+      timeEl.textContent = '— / —';
+      discEl.style.transform = 'rotate(0deg)';
+      return;
+    }
+    var tot = totalSec();
+    barEl.style.width = (prog * 100).toFixed(2) + '%';
+    timeEl.textContent = fmt(prog * tot) + ' / ' + fmt(tot);
+    discEl.style.transform = 'rotate(' + (prog * 1440).toFixed(2) + 'deg)';
+  }
+  function setState(s){
+    state = s;
+    deck.setAttribute('data-tt-state', s);
+    playBt.textContent = (s === 'playing') ? '暂停'
+      : (s === 'paused' ? '继续'
+      : (s === 'ended' ? '重播'
+      : (s === 'mute' ? '站内无音源' : '播放')));
+    playBt.disabled = (s === 'idle' || s === 'mute');
+    ejectBt.disabled = (s === 'idle');
+    markPlaying();
+  }
+  function stopRAF(){ if (raf) window.cancelAnimationFrame(raf); raf = 0; }
+
+  /* ---------- 渐入（不用 WebAudio：CDN 无 CORS 头会被判成污染源静音） ---------- */
+  function fadeStop(){ if (fadeT){ window.cancelAnimationFrame(fadeT); fadeT = 0; } }
+  function fadeIn(){
+    if (!audio) return;
+    fadeStop();
+    var t0 = 0, ms = 1100;
+    audio.volume = 0;
+    var step = function(t){
+      if (!audio){ fadeT = 0; return; }
+      if (!t0) t0 = t;
+      var k = (t - t0) / ms;
+      if (k >= 1){ audio.volume = 1; fadeT = 0; return; }
+      audio.volume = k;
+      fadeT = window.requestAnimationFrame(step);
+    };
+    fadeT = window.requestAnimationFrame(step);
+  }
+
+  /* ---------- 官方平台跳转 ---------- */
+  var CJK_RE = /[㐀-䶿一-鿿぀-ヿ가-힯]/;
+  function appleLink(it){
+    return 'https://music.apple.com/' + (CJK_RE.test((it.t || '') + (it.a || '')) ? 'hk' : 'us') +
+           '/search?term=' + encodeURIComponent(((it.t || '') + ' ' + (it.a || '')).trim());
+  }
+  function platLinks(it){
+    var i, u, out = [], ext = (it && it.ext) || [], ne = null, qq = null;
+    var kw = encodeURIComponent((((it && it.t) || '') + ' ' + ((it && it.a) || '')).trim());
+    for (i = 0; i < ext.length; i++){
+      u = (ext[i] && ext[i][1]) || '';
+      if (u.indexOf('music.163.com') > -1){ if (!ne) ne = ext[i]; }
+      else if (u.indexOf('y.qq.com') > -1){ if (!qq) qq = ext[i]; }
+      else out.push(ext[i]);
+    }
+    out.push(ne || ['网易云', 'https://music.163.com/#/search/m/?s=' + kw]);
+    out.push(qq || ['QQ 音乐', 'https://y.qq.com/n/ryqq/search?w=' + kw]);
+    if (it && it.pv) out.push(['Apple Music', appleLink(it)]);
+    return out;
+  }
+  function renderLinks(it){
+    var i, a, out = it ? platLinks(it) : [];
+    linksEl.innerHTML = '';
+    if (!out.length){ linksEl.hidden = true; return; }
+    for (i = 0; i < out.length; i++){
+      a = document.createElement('a');
+      a.href = out[i][1];
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.innerHTML = esc(out[i][0]) + '<i>↗</i>';
+      linksEl.appendChild(a);
+    }
+    linksEl.hidden = false;
+  }
+
+  function tick(t){
+    if (!tPrev) tPrev = t;
+    var dt = (t - tPrev) / 1000;
+    tPrev = t;
+    if (dt > 0.25) dt = 0.25;
+    if (audio && audio.readyState >= 1 && isFinite(audio.duration) && audio.duration > 0){
+      if (cap && audio.currentTime >= cap){ stopRAF(); onEnd(); return; }
+      prog = clamp(audio.currentTime / audio.duration, 0, 1);
+      paint();
+      raf = window.requestAnimationFrame(tick);
+      return;
+    }
+    prog = clamp(prog + dt / span, 0, 1);
+    paint();
+    if (prog >= 1){ raf = 0; onEnd(); return; }
+    raf = window.requestAnimationFrame(tick);
+  }
+  function playAudio(){
+    if (!audio) return;
+    fadeArmed = true;
+    try { var pr = audio.play(); if (pr && pr.catch) pr.catch(function(){}); } catch (e){}
+  }
+  function play(){
+    if (!cur || mode === 'none') return;
+    if (state === 'ended'){
+      prog = 0;
+      if (audio){ try { audio.currentTime = 0; } catch (e){} }
+    }
+    tPrev = 0;
+    setState('playing');
+    paint();
+    stopRAF();
+    raf = window.requestAnimationFrame(tick);
+    if (audio && audio.paused) playAudio();
+  }
+  function pause(){
+    stopRAF();
+    if (state !== 'playing') return;
+    setState('paused');
+    if (audio){ try { audio.pause(); } catch (e){} }
+  }
+  function onEnd(){
+    stopRAF();
+    fadeStop();
+    setState('ended');
+    paint();
+    setNow('播放结束，可以再挑一张');
+    if (audio){ try { audio.pause(); } catch (e){} }
+  }
+  /* 音源优先级：整首（本地文件）> 30 秒片段（本地文件）> 没有音源 */
+  function srcOf(it){
+    if (it.src) return { url: /^https?:/i.test(it.src) ? it.src : 'assets/music/' + it.src, mode: 'full' };
+    if (it.pv)  return { url: /^https?:\/\//i.test(it.pv)  ? it.pv  : 'assets/music/' + it.pv,  mode: 'clip' };
+    return null;
+  }
+  function badge(){
+    badgeEl.textContent = '33⅓ RPM · ' +
+      (mode === 'full' ? '整首播放' : (mode === 'clip' ? '试听 30 秒' : '站内无音源'));
+  }
+  function onAudioError(){
+    if (mode === 'full' && cur && cur.pv){
+      mode = 'clip'; cap = DUR; prog = 0; tPrev = 0;
+      audio.src = srcOf(cur).url;
+      playAudio();
+      badge();
+      setNow('');
+      return;
+    }
+    if (audio){ try { audio.pause(); } catch (e){} }
+    audio = null;
+    fadeStop();
+    stopRAF();
+    mode = 'none'; cap = 0; span = DUR; prog = 0;
+    badge();
+    setState('mute');
+    paint();
+    renderLinks(cur);
+    setNow('音频没加载出来');
+  }
+  function load(it, idx){
+    cur = it;
+    curI = (typeof idx === 'number') ? idx : -1;
+    curCat = catI;
+    prog = 0;
+    span = DUR;
+    labelEl.innerHTML = artHTML(it);
+    applyArtEdge(it);
+    applyAura(it);
+    var labImg = labelEl.querySelector('img');
+    if (labImg) labImg.onerror = function(){ labelEl.innerHTML = coverArt(it.t + '|' + it.a); };
+    recEl.classList.add('is-on');
+    platter.classList.add('has-rec');
+    setNow('');
+    stopRAF();
+    fadeStop();
+    if (audio){ try { audio.pause(); } catch (e){} audio = null; }
+    var s = srcOf(it);
+    mode = s ? s.mode : 'none';
+    cap  = (mode === 'clip') ? DUR : 0;
+    if (s){
+      audio = new Audio();
+      audio.preload = 'auto';
+      audio.volume = 0;                 // 渐入的起点
+      audio.addEventListener('ended', onEnd);
+      audio.addEventListener('error', onAudioError);
+      audio.addEventListener('playing', function(){
+        if (!fadeArmed) return;
+        fadeArmed = false;
+        fadeIn();
+      });
+      audio.src = s.url;
+    }
+    badge();
+    markPlaying();
+    if (crateBuilt) renderCrate();
+    renderList();
+    renderLinks(it);
+    if (mode === 'none'){
+      setState('mute');
+      paint();
+      setNow((it.ext && it.ext.length) ? '站内暂时放不了，去下面这些平台听' : '音频没加载出来');
+    } else {
+      play();
+    }
+  }
+  function eject(){
+    stopRAF();
+    fadeStop();
+    if (audio){ try { audio.pause(); } catch (e){} audio = null; }
+    cur = null; curI = -1; prog = 0;
+    mode = 'none'; cap = 0; span = DUR;
+    badgeEl.textContent = '33⅓ RPM · 待机';
+    recEl.classList.remove('is-on');
+    platter.classList.remove('has-rec');
+    clearDiscEdge();
+    applyAura(null);
+    renderLinks(null);
+    paint();
+    setState('idle');
+    setNow(null);
+    markPlaying();
+    renderCrate();
+    renderList();
+  }
+
+  /* ---------- 唱片箱抽屉 / 文字歌单 ---------- */
+  function crateOpen(){ return crateEl.classList.contains('is-open'); }
+  function openCrate(){
+    if (!crateBuilt) renderCrate();
+    crateEl.classList.add('is-open');
+    crateEl.setAttribute('aria-hidden', 'false');
+    maskEl.classList.add('is-on');
+    /* 抽屉开在小分类上：当前分类那一张滚到可见处 */
+    var on = gridEl.querySelector('.msleeve.is-on');
+    if (on && on.scrollIntoView) on.scrollIntoView({ block: 'center' });
+  }
+  function closeCrate(){
+    crateEl.classList.remove('is-open');
+    crateEl.setAttribute('aria-hidden', 'true');
+    maskEl.classList.remove('is-on');
+  }
+  function openList(){
+    renderList();
+    listEl.classList.add('is-open');
+    listEl.setAttribute('aria-hidden', 'false');
+    var on = olEl.querySelector('.mlist__row.is-on');
+    if (on && on.scrollIntoView) on.scrollIntoView({ block: 'center' });
+  }
+  function closeList(){
+    listEl.classList.remove('is-open');
+    listEl.setAttribute('aria-hidden', 'true');
+  }
+
+  /* ---------- 开 / 关面板 ---------- */
+  function isOpen(){ return deck.classList.contains('is-open'); }
+  function open(){
+    if (isOpen()) return;
+    deck.classList.add('is-open');
+    fit();
+    paint();
+  }
+  function close(){
+    if (!isOpen()) return;
+    closeCrate();
+    closeList();
+    deck.classList.remove('is-open');
+    pause();
+  }
+
+  /* ---------- 尺寸：唱机整体缩放 ---------- */
+  function fit(){
+    if (!slot || !tt || !stage) return;
+    var aw = stage.clientWidth;
+    var ah = stage.clientHeight;
+    if (aw < 40 || ah < 40) return;
+    var s = clamp(Math.min(aw / 300, ah / 300), 0.6, 1.12);
+    slot.style.width  = (300 * s) + 'px';
+    slot.style.height = (300 * s) + 'px';
+    tt.style.transform = 'scale(' + s + ')';
+  }
+
+  /* ---------- 事件 ---------- */
+  playBt.addEventListener('click', function(){
+    if (!cur) return;
+    if (state === 'playing') pause(); else play();
+  });
+  ejectBt.addEventListener('click', function(){
+    eject();
+    /* 取出后直接把唱片箱递上来，省得再点一次转盘 */
+    openCrate();
+  });
+  /* 点转盘 → 唱片箱（放唱片的那块空白处就是入口） */
+  platter.addEventListener('click', function(e){
+    e.stopPropagation();
+    openCrate();
+  });
+  platter.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+      e.preventDefault();
+      openCrate();
+    }
+  });
+  /* 三条横线歌单入口按用户要求已删（2026-09-21）；面板与 renderList 保留但没有触发点了 */
+  if (lClose) lClose.addEventListener('click', closeList);
+
+  maskEl.addEventListener('click', closeCrate);
+  /* 点唱片 → 抽屉自动收起 + 落盘开播 */
+  gridEl.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('.msleeve');
+    if (!b) return;
+    var i = +b.getAttribute('data-i');
+    closeCrate();
+    load(CATS[catI].list[i], i);
+  });
+  /* 点歌单里的一行 → 直接切歌（歌单留在屏幕上，方便连着换） */
+  olEl.addEventListener('click', function(e){
+    var b = e.target.closest && e.target.closest('.mlist__row');
+    if (!b) return;
+    var i = +b.getAttribute('data-i');
+    load(CATS[catI].list[i], i);
+  });
+  /* 两个分类标签栏共用一份 catI */
+  function onTab(e){
+    var b = e.target.closest && (e.target.closest('.mcrate__tab') || e.target.closest('.mlist__tab'));
+    if (!b) return;
+    var i = +b.getAttribute('data-cat');
+    if (i === catI) return;
+    catI = i;
+    renderTabs();
+    renderCrate();
+    renderList();
+  }
+  cTabsEl.addEventListener('click', onTab);
+  lTabsEl.addEventListener('click', onTab);
+
+  if (closeBt) closeBt.addEventListener('click', close);
+  /* 面板铺满整屏，滚轮/键盘不该再翻页 */
+  deck.addEventListener('wheel', function(e){ e.stopPropagation(); }, { passive: true });
+  window.addEventListener('keydown', function(e){
+    if (!isOpen()) return;
+    if (e.key === 'Escape' || e.key === 'Esc'){ close(); return; }
+  }, true);
+
+  /* 分享入口：复用 05 号块的「分享安利」弹窗（写进 public.recos） */
+  var shareBt = document.getElementById('mdeckShare');
+  if (shareBt) shareBt.addEventListener('click', function(){
+    if (window.__zyOpenShare) window.__zyOpenShare('music');
+  });
+
+  var rt = 0;
+  window.addEventListener('resize', function(){
+    window.clearTimeout(rt);
+    rt = window.setTimeout(fit, 160);
+  }, { passive: true });
+  window.addEventListener('orientationchange', function(){
+    window.setTimeout(fit, 320);
+  });
+
+  /* ---------- 初始化 ---------- */
+  renderTabs();
+  renderList();          /* 文字歌单只有纯文本，建了不亏；唱片箱等第一次打开再建 */
+  setState('idle');
+  paint();
+
+  /* 给神经网那边的入口用：点「音乐」簇 / 标签 → 打开面板 */
+  window.__zyMusicOpen = open;
+  window.__zyMusicClose = close;
+
+  /* 留给自动化测试与手工调试 */
+  window.__zyMDeck = {
+    open: open, close: close,
+    crate: openCrate, list: openList,
+    load: function(i){ load(CATS[catI].list[i], i); },
+    info: function(){ return { mode: mode, state: state, prog: prog, cat: catI, cur: cur ? cur.t : null }; },
+    el: function(){ return audio; },
+    cats: CATS
+  };
+})();
+</script>
+
+<script>
+/* ============================================================
+   EDITING DECK（移动版剪辑作品集 #clips）
+   ------------------------------------------------------------
+   与桌面版共用 assets/clips/ 那 18 张图，交互按手指重做：
+     · 第一组 9 张正片仍是滚动堆叠 —— 竖着划本来就是手机上最顺的手势；
+       每张的行程不再按屏幕比例拍脑袋，而是「卡片实际高度 + 空档」，
+       这样窄屏宽屏、横屏竖屏都不会出现「下一张还没上来就压住上一张」。
+     · 第二组 9 张片尾以横向拖拽为主，加了速度判定：快扫一下就翻一张，
+       慢慢拖则要拖过大半张才换 —— 手机上一划换向最常见，少了这档会很难用。
+     · 桌面版那套滚轮本文件里一份不留（手机没滚轮）。
+   ============================================================ */
+(function(){
+  'use strict';
+
+  var panel   = document.getElementById('clips');
+  var stage   = document.getElementById('clipsStage');
+  var stack   = document.getElementById('cstack');
+  var navEl   = document.getElementById('clipsNav');
+  var pileSec = document.getElementById('pileSec');
+  var caroEl  = document.getElementById('caro');
+  var belt    = document.getElementById('caroBelt');
+  var caroPlay= document.getElementById('caroPlay');
+  var caroNum = document.getElementById('caroNum');
+  var closeBt = document.getElementById('clipsClose');
+  if (!panel || !stage || !stack) return;
+
+  var DIR = 'assets/clips/';
+
+  /* ---- 第一组：九张正片（与桌面版 index.html 的 SHOWS 对应） ---- */
+  var SHOWS = [
+    { t:'马戏之王',       img:'01-greatest-showman.jpg' },
+    { t:'外婆的家',       img:'02-the-way-home.jpg' },
+    { t:'战火中的芭蕾',   img:'03-ballet-in-flames.jpg' },
+    { t:'巴黎奥运会',     img:'04-paris-2024.jpg' },
+    { t:'围棋',           img:'05-go.jpg' },
+    { t:'文物修复师',     img:'06-relic-restorer.jpg' },
+    { t:'贝尔·格里尔斯', img:'07-bear-grylls.jpg' },
+    { t:'歌手大赛',       img:'08-singers-contest.jpg' },
+    { t:'运动会',         img:'09-sports-meet.jpg' }
+  ];
+
+  /* ---- 第二组：九张片尾，清单里合并成一条「一些片尾」 ---- */
+  var CREDITS = [
+    '10-credit-01.jpg', '11-credit-02.jpg', '12-my-altay.jpg',
+    '13-credit-03.jpg', '14-credit-04.jpg', '15-credit-05.jpg',
+    '16-credit-06.jpg', '17-credit-07.jpg', '18-credit-08.jpg'
+  ];
+
+  /* 卡片一条接一条不停往左流：基础速度 px/s（慢到能看清，又不至于像停着），
+     拖完之后的手甩速度会指数衰减回这个值。 */
+  var BASE = 27;
+  var reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  var built = false, items = [], cards = [];
+  var ph = 0, secTop = 0, lastCur = -1, ticking = false;
+  var x = 0, v = 0, groupW = 0, offsets = [];
+  var dragging = null, dragMoved = 0, paused = false, holdUntil = 0;
+  var snap = null, rafId = 0, lastTs = 0, visible = false, lastIdx = -1;
+
+  function pad(n){ return n < 10 ? '0' + n : '' + n; }
+  function clamp(v, a, b){ return v < a ? a : (v > b ? b : v); }
+  function clamp01(v){ return v < 0 ? 0 : (v > 1 ? 1 : v); }
+  /* 视口中线越过了第二组，就算「已经翻到片尾这一段」 */
+  function inSecond(){
+    if (!secTop) return false;
+    return stage.scrollTop + (stage.clientHeight || ph) * 0.5 >= secTop;
+  }
+
+  /* ---------- 建内容（第一次打开才建，18 张图不和首屏抢带宽） ---------- */
+  function build(){
+    built = true;
+
+    /* 顶部横向目录：九部正片各一条，九张片尾合并成一条 */
+    var navData = SHOWS.concat([{ t:'一些片尾' }]);
+    navData.forEach(function(w, i){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mclips__chip';
+      b.setAttribute('data-i', i);
+      b.appendChild(document.createTextNode(w.t));
+      var n = document.createElement('i');
+      n.textContent = pad(i + 1);
+      b.insertBefore(n, b.firstChild);
+      navEl.appendChild(b);
+    });
+
+    /* 第一组：滚动堆叠 */
+    SHOWS.forEach(function(w, i){
+      var item = document.createElement('div');
+      item.className = 'cstack__item';
+      var card = document.createElement('article');
+      card.className = 'clip';
+      var img = document.createElement('img');
+      img.src = DIR + w.img;
+      img.alt = w.t;
+      img.decoding = 'async';
+      if (i > 0) img.loading = 'lazy';    /* 手机上只第一张进第一屏 */
+      var shade = document.createElement('span');
+      shade.className = 'clip__shade';
+      card.appendChild(img); card.appendChild(shade);
+      item.appendChild(card);
+      stack.appendChild(item);
+      items.push({ card: card, shade: shade });
+    });
+
+    /* 第二组：同一批片尾卡片在 DOM 里排两遍，跑到一组的宽度就整段跳回去，
+       接缝正落在两个第一张之间，肉眼看不见 —— 这就是走马灯能无限转的原理。
+       图 url 两张一样，浏览器只下一遍。 */
+    for (var pass = 0; pass < 2; pass++){
+      CREDITS.forEach(function(f, i){
+        var card = document.createElement('div');
+        card.className = 'caro__card';
+        card.setAttribute('data-i', i);
+        var img = document.createElement('img');
+        img.src = DIR + f;
+        img.alt = '一些片尾';
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        card.appendChild(img);
+        belt.appendChild(card);
+        cards.push(card);
+      });
+    }
+
+    caroMeasure();
+  }
+
+  /* ---------- 尺寸 ----------
+     每张的滚动行程 = 卡片实际高度 + 空档，而不是某个屏幕比例。
+     手机上卡片跟着宽度走（16:9），宽度一变高度就变，按比例拍脑袋的话
+     横屏时会出现「行程还没走完，下一张已经压上来」。 */
+  function measure(){
+    var cardH = items.length ? items[0].card.getBoundingClientRect().height : 0;
+    if (!cardH) cardH = (stage.clientWidth - 32) * 9 / 16;
+    var gap = clamp(stage.clientHeight * 0.11, 62, 118);
+    ph = Math.round(cardH + gap);
+    stack.style.setProperty('--mc-ph', ph + 'px');
+    secTop = pileSec ? pileSec.offsetTop : 0;
+  }
+  /* ---------- 第二组：走马灯 ----------
+     x 是整条带的横向位移，恒为负（往左流），取值卡在 (-groupW, 0]：
+     越界就补/减一整组的宽度，跳的时候接缝正落在两个「第一张」之间，肉眼看不出来。
+     ⚠ 每帧只改 belt 这一个元素的 transform —— 18 张卡自己一律不动。
+       曾经想给每张按远近算缩放，结果手机上直接从 60fps 掉到三十几，别再试。 */
+  function caroMeasure(){
+    if (!caroEl || !cards.length) return;
+    var cw = caroEl.clientWidth, ch = caroEl.clientHeight;
+    if (cw < 40 || ch < 40) return;
+    /* 卡片宽度两头夹：不超过容器宽的 62%（要留出左右两张的余量），
+       也不许让卡高超过容器高（乘 0.92 留点呼吸）—— 横屏时后一条才起作用。 */
+    var w = Math.min(cw * 0.62, ch * 0.92 * 16 / 9);
+    caroEl.style.setProperty('--caro-card-w', Math.round(w) + 'px');
+    /* 一组有多宽，用「第 10 张相对第 1 张的左偏移」换来，比 (宽+间距)×9 精确 */
+    var n = CREDITS.length;
+    groupW = cards[n] ? (cards[n].offsetLeft - cards[0].offsetLeft) : 0;
+    offsets = [];
+    for (var i = 0; i < cards.length; i++) offsets.push(cards[i].offsetLeft);
+  }
+  function setX(nx){
+    x = nx;
+    if (groupW > 0){
+      while (x <= -groupW) x += groupW;
+      while (x > 0) x -= groupW;
+    }
+    if (belt) belt.style.transform = 'translateX(' + x.toFixed(1) + 'px)';
+  }
+  /* 页码跟着「此刻正对着屏幕中央的那张」走 */
+  function updateNum(){
+    if (!caroEl || !caroNum) return;
+    var mid = caroEl.clientWidth / 2, n = CREDITS.length;
+    if (!n) return;
+    var best = -1, bd = Infinity;
+    for (var i = 0; i < cards.length; i++){
+      var d = Math.abs(offsets[i] + x + cards[i].offsetWidth / 2 - mid);
+      if (d < bd){ bd = d; best = i; }
+    }
+    var idx = best % n;
+    if (idx !== lastIdx){
+      lastIdx = idx;
+      caroNum.textContent = pad(idx + 1) + ' / ' + pad(n);
+    }
+  }
+  function frame(ts){
+    rafId = window.requestAnimationFrame(frame);
+    if (!lastTs) lastTs = ts;
+    var dt = Math.min(48, ts - lastTs);
+    lastTs = ts;
+    if (!visible || !groupW) return;
+
+    /* 点了一张卡之后，先把那张慢慢挪到正中站稳，再继续流 */
+    if (snap){
+      var k = clamp01((ts - snap.t0) / snap.dur);
+      var e = 1 - Math.pow(1 - k, 3);
+      setX(snap.from + (snap.to - snap.from) * e);
+      if (k >= 1) snap = null;
+      updateNum();
+      return;
+    }
+    if (dragging){ updateNum(); return; }        /* 手指接管时完全交给手指 */
+    if (paused || Date.now() < holdUntil){ v = 0; return; }
+
+    /* 手甩出去的速度按指数衰减回基础速度 —— 反方向甩会自己慢慢转回来 */
+    v += (-BASE - v) * Math.min(1, dt / 1000 * 3.2);
+    setX(x + v * dt / 1000);
+    updateNum();
+  }
+  function startStream(){ if (!rafId){ lastTs = 0; rafId = window.requestAnimationFrame(frame); } }
+  function stopStream(){ if (rafId){ window.cancelAnimationFrame(rafId); rafId = 0; } }
+
+  /* 手指左右拖：按下就抢到手，松手把当时的瞬时速度交给上面的衰减 */
+  if (caroEl){
+    caroEl.addEventListener('pointerdown', function(e){
+      if (!e.isPrimary) return;                  /* 双指缩放之类不接管 */
+      snap = null;
+      dragging = { id: e.pointerId, x: e.clientX, y: e.clientY, lt: (e.timeStamp || Date.now()) };
+      dragMoved = 0; v = 0; visible = true;
+      if (caroEl.setPointerCapture){ try { caroEl.setPointerCapture(e.pointerId); } catch (err){} }
+    });
+    caroEl.addEventListener('pointermove', function(e){
+      if (!dragging || e.pointerId !== dragging.id) return;
+      var dx = e.clientX - dragging.x;
+      var dy = e.clientY - dragging.y;
+      /* 竖向意图为主 → 把手势还给面板去滚动（横向已经由 touch-action 保证归我们） */
+      if (!dragging.h && Math.abs(dy) > Math.abs(dx) + 8 && Math.abs(dy) > 14){
+        dragging = null;
+        return;
+      }
+      dragging.h = true;
+      var step = dx - (dragging.dx || 0);
+      dragging.dx = dx;
+      var now = e.timeStamp || Date.now();
+      v = step / Math.max(8, now - dragging.lt) * 1000;   /* px/s，负 = 往左 */
+      dragging.lt = now;
+      if (Math.abs(dx) > dragMoved) dragMoved = Math.abs(dx);
+      setX(x + step);
+    });
+    function endDrag(){
+      if (!dragging) return;
+      dragging = null;
+      if (Math.abs(v) > 1400) v = v > 0 ? 1400 : -1400;   /* 甩太快也不至于飞出去 */
+      holdUntil = 0;                                      /* 拖完立刻接回自动流动 */
+    }
+    caroEl.addEventListener('pointerup', endDrag);
+    caroEl.addEventListener('pointercancel', endDrag);
+
+    /* 点一张 → 拖到正中站定，停约 3.5 秒再接着转。
+       抬手时也会来一发 click，位移过阈值就按拖拽算、不算点击。 */
+    caroEl.addEventListener('click', function(e){
+      if (dragMoved > 12) return;
+      var card = e.target.closest ? e.target.closest('.caro__card') : null;
+      if (!card) return;
+      var target = -(card.offsetLeft + card.offsetWidth / 2 - caroEl.clientWidth / 2);
+      while (target > 0) target -= groupW;
+      while (target <= -groupW) target += groupW;
+      /* 挑离当前位置最近的那条路径，别为了够同一张卡绕一整圈 */
+      if (target - x > groupW / 2) target -= groupW;
+      if (x - target > groupW / 2) target += groupW;
+      snap = { from: x, to: target,
+               t0: (window.performance && performance.now) ? performance.now() : Date.now(),
+               dur: 600 };
+      v = 0;
+      holdUntil = Date.now() + 3500;
+    });
+  }
+  if (caroPlay){
+    if (reduceMQ.matches) paused = true;         /* 尊重「减弱动态效果」：只手动拖，不自动流 */
+    caroPlay.textContent = paused ? '继续滚动' : '暂停滚动';
+    caroPlay.addEventListener('click', function(){
+      paused = !paused;
+      caroPlay.textContent = paused ? '继续滚动' : '暂停滚动';
+      if (!paused) holdUntil = 0;
+    });
+  }
+
+  /* 这一段真的滚进画面才跑动画：面板没开、或还停在第一组时一帧都不烧 */
+  if (window.IntersectionObserver && pileSec){
+    new IntersectionObserver(function(es){
+      visible = !!(es && es[0] && es[0].isIntersecting);
+      if (visible) lastTs = 0;
+    }, { threshold: 0.05 }).observe(pileSec);
+  } else {
+    visible = true;
+  }
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) stopStream();
+    else if (isOpen()) startStream();
+  });
+
+  /* ---------- 第一组：滚动堆叠 ---------- */
+  function paint(){
+    var st = stage.scrollTop;
+    for (var i = 0; i < items.length; i++){
+      var covered = clamp01((st - i * ph) / ph);        /* 0 刚贴顶 → 1 被下一张盖满 */
+      var coming  = clamp01((st - (i - 1) * ph) / ph);  /* 0 还在下面 → 1 已经就位 */
+      items[i].card.style.transform =
+          'scale(' + ((1 - covered * 0.055) * (0.952 + 0.048 * coming)).toFixed(4) + ')';
+      items[i].shade.style.opacity = (covered * 0.6).toFixed(3);
+    }
+
+    var curIdx = inSecond() ? SHOWS.length
+               : Math.max(0, Math.min(SHOWS.length - 1, Math.round(st / ph)));
+    if (curIdx !== lastCur){
+      lastCur = curIdx;
+      var bs = navEl.children;
+      for (var j = 0; j < bs.length; j++){
+        if (j === curIdx) bs[j].classList.add('is-on');
+        else bs[j].classList.remove('is-on');
+      }
+      syncNav(bs[curIdx]);
+    }
+  }
+  /* 当前那条带进横向可视区 */
+  function syncNav(el){
+    if (!el) return;
+    var l = el.offsetLeft, r = l + el.offsetWidth;
+    var vl = navEl.scrollLeft, vr = vl + navEl.clientWidth;
+    var to = null;
+    if (l < vl + 24) to = Math.max(0, l - 24);
+    else if (r > vr - 24) to = r - navEl.clientWidth + 24;
+    if (to !== null){
+      if (navEl.scrollTo) navEl.scrollTo({ left: to, behavior: 'smooth' });
+      else navEl.scrollLeft = to;
+    }
+  }
+  stage.addEventListener('scroll', function(){
+    if (ticking) return;
+    ticking = true;
+    requestAnimationFrame(function(){ ticking = false; paint(); });
+  }, { passive: true });
+
+  /* ---------- 开关 ---------- */
+  function isOpen(){ return panel.classList.contains('is-open'); }
+  function open(){
+    if (isOpen()) return;
+    panel.classList.add('is-open');
+    if (!built) build();
+    /* 必须先 measure 再把滚动归零：行程是按卡片实际高度算的 */
+    measure();
+    caroMeasure();
+    setX(x); updateNum(); startStream();
+    stage.scrollTop = 0;
+    lastCur = -1;
+    paint();
+  }
+  function close(){
+    if (!isOpen()) return;
+    panel.classList.remove('is-open');
+    stopStream();                       /* 面板都关了，别再后台空转 */
+    if (panel.contains(document.activeElement) && document.activeElement.blur){
+      document.activeElement.blur();
+    }
+  }
+  if (closeBt) closeBt.addEventListener('click', close);
+
+  /* 面板铺满整屏，里面的滚动/触摸不该再翻整站的页 */
+  panel.addEventListener('wheel', function(e){ e.stopPropagation(); }, { passive: true });
+  panel.addEventListener('touchmove', function(e){ e.stopPropagation(); }, { passive: true });
+  window.addEventListener('keydown', function(e){
+    if (!isOpen()) return;
+    if (e.key === 'Escape' || e.key === 'Esc') close();
+  }, true);
+
+  /* 点目录跳过去：正片平滑滚到位，片尾那条直接滚到那一段 */
+  function goto(i){
+    var top = i < SHOWS.length ? i * ph : secTop;
+    if (stage.scrollTo) stage.scrollTo({ top: top, behavior: 'smooth' });
+    else stage.scrollTop = top;
+  }
+  navEl.addEventListener('click', function(e){
+    var b = e.target.closest ? e.target.closest('.mclips__chip') : null;
+    if (!b) return;
+    var i = parseInt(b.getAttribute('data-i'), 10);
+    if (!isNaN(i)) goto(i);
+  });
+
+  /* ---------- 转向 / 尺寸变化 ---------- */
+  var rt = 0;
+  function refit(){
+    var ratio = ph ? stage.scrollTop / ph : 0;
+    measure();
+    caroMeasure();
+    setX(x); startStream();
+    if (isOpen()) stage.scrollTop = ratio * ph;
+    lastCur = -1;
+    paint();
+  }
+  window.addEventListener('resize', function(){
+    window.clearTimeout(rt);
+    rt = window.setTimeout(refit, 180);
+  }, { passive: true });
+  window.addEventListener('orientationchange', function(){
+    window.setTimeout(refit, 320);
+  });
+
+  /* 给神经网那边的入口用：点「剪辑」簇 / 标签 → 打开面板 */
+  window.__zyClipsOpen = open;
+  window.__zyClipsClose = close;
+
+  /* 留给自动化测试与手工调试 */
+  window.__zyClips = {
+    open: open, close: close, goto: goto,
+    pause: function(p){ paused = !!p; if (caroPlay) caroPlay.textContent = paused ? '继续滚动' : '暂停滚动'; },
+    state: function(){
+      return { ph: ph, secTop: secTop, scrollTop: stage.scrollTop, cur: lastCur,
+               built: built, items: items.length, cards: cards.length,
+               x: x, v: Math.round(v), groupW: groupW, visible: visible, paused: paused };
+    }
+  };
 })();
 </script>
 
