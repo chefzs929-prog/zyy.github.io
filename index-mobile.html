@@ -1571,12 +1571,19 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
   color:var(--ink-3);font-family:var(--zh);font-size:13px;letter-spacing:.06em;
 }
 .mcrate__tab.is-on{border-color:var(--accent-line,var(--line-2));color:var(--ink);background:var(--accent-glow,transparent)}
+/* 两列必须写 minmax(0,1fr)：写 1fr 的话，grid 项的自动最小尺寸会取
+   「歌曲名不换行时的整行宽度」，长曲名会把那一列顶宽 —— 两列就不等宽，
+   分隔线也就不再落在页面正中，而且文字会撑破格子而不是省略号。
+   抽屉左右 padding 对称 + 2 列等宽 ⇒ 中间那道缝正好压在页面 50% 上。
+   再把滚动条藏掉（移动端本就是叠层滚动条），免得它占掉右侧宽度把中线挤偏。 */
 .mcrate__grid{
   flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;
-  display:grid;grid-template-columns:1fr 1fr;gap:9px;
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+  scrollbar-width:none;-ms-overflow-style:none;
 }
+.mcrate__grid::-webkit-scrollbar{width:0;height:0}
 .msleeve{
-  display:flex;align-items:center;gap:9px;text-align:left;
+  display:flex;align-items:center;gap:9px;text-align:left;min-width:0;overflow:hidden;
   border:1px solid var(--line);background:rgba(230,236,238,.02);padding:8px;min-height:60px;
 }
 .msleeve.is-on{border-color:var(--accent-line,var(--line-2));background:var(--accent-glow,transparent)}
@@ -1589,7 +1596,8 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 /* 真封面同样绝对定位铺满格子，直接盖住占位 SVG；
    只给内层定位不够 —— <img> 会排在 SVG 后面掉出格子，同样被裁掉 */
 .msleeve__inner img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
-.msleeve__meta{min-width:0;flex:1}
+/* 显示不全的曲名 / 歌手一律末尾省略号（格子被 minmax(0,1fr) 钉死，撑不出去） */
+.msleeve__meta{min-width:0;flex:1;overflow:hidden}
 .msleeve__meta b{
   display:block;font-size:12px;font-weight:600;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
@@ -6531,6 +6539,9 @@ function makeEnvMap(renderer){
   window.__zyRace = { open: open, close: close, state: function(){ return { built: built }; } };
 })();
 </script>
+
+<!-- ══════════ 兴趣爱好子面板的加载页（赛博进度条，图片 80% 落地才放行） ══════════ -->
+<script src="assets/js/panel-loader.js"></script>
 
 </body>
 </html>

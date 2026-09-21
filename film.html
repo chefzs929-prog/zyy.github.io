@@ -212,8 +212,13 @@ footer{
 .lb .prev{left:22px;top:50%;transform:translateY(-50%)}
 .lb .next{right:22px;top:50%;transform:translateY(-50%)}
 
+/* 移动端栏目胶囊挤不下长名：漫威那条只留「漫威」 */
+nav a .nav-short{display:none}
+
 @media (max-width:560px){
   .card{width:132px}
+  nav a .nav-long{display:none}
+  nav a .nav-short{display:inline}
   .fav .card{width:150px}
   .strip{gap:9px;padding:2px 12px}
   .lb .prev{left:10px}.lb .next{right:10px}
@@ -232,7 +237,7 @@ footer{
 <nav id="nav">
   <a href="#fav">年度最爱</a>
   <a href="#movie">电影</a>
-  <a href="#marvel">没人能不看漫威</a>
+  <a href="#marvel"><span class="nav-long">没人能不看漫威</span><span class="nav-short">漫威</span></a>
   <a href="#anime">动画电影</a>
   <a href="#series">剧集</a>
 </nav>
