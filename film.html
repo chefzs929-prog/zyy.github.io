@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#08090a">
+<title>影视档 · ZHANG Yuyan</title>
+<link rel="stylesheet" href="assets/fonts/fonts.css">
+<style>
+/* ============================================================
+   影视档 —— 与主站同一套 TOKEN（深青灰 / 骨白 / 锈橙）
+   ============================================================ */
+:root{
+  --bg:#0f1416;
+  --bg-2:#151b1d;
+  --panel:rgba(230,236,238,.024);
+  --panel-2:rgba(230,236,238,.045);
+  --line:rgba(230,236,238,.09);
+  --line-2:rgba(230,236,238,.18);
+
+  --ink:#e6e9e7;
+  --ink-2:#a4b0b2;
+  --ink-3:#75848a;
+  --ink-4:#4d5a60;
+
+  --silver:#c4cfd4;
+  --rust:#b4623a;
+  --rust-dim:rgba(180,98,58,.20);
+  --dust:#8a9498;
+
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --sans:Archivo,"Helvetica Neue","PingFang SC","Hiragino Sans GB",system-ui,-apple-system,sans-serif;
+  --zh:"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+
+  --ease:cubic-bezier(.22,.75,.16,1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%}
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--zh);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+a{color:inherit;text-decoration:none}
+::selection{background:rgba(180,98,58,.3);color:#14100c}
+body::before{ /* 顶部一点氛围光，呼应主站 */
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(60% 40% at 70% -10%, rgba(180,98,58,.07), transparent 70%);
+}
+
+/* ---------- 顶栏 ---------- */
+header{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:14px clamp(16px,4vw,48px);
+  background:linear-gradient(rgba(15,20,22,.92),rgba(15,20,22,.78));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:baseline;gap:10px;font-family:var(--mono);font-size:13px;letter-spacing:.12em;color:var(--silver)}
+.brand em{font-style:normal;color:var(--rust)}
+.back{
+  font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--ink-3);
+  border:1px solid var(--line-2);border-radius:99px;padding:7px 14px;
+  transition:color .3s var(--ease),border-color .3s var(--ease);
+}
+.back:hover{color:var(--rust);border-color:var(--rust)}
+
+/* ---------- 分类导航 ---------- */
+nav{
+  position:sticky;top:53px;z-index:40;
+  display:flex;gap:8px;flex-wrap:wrap;
+  padding:12px clamp(16px,4vw,48px) 14px;
+  background:linear-gradient(rgba(15,20,22,.9),rgba(15,20,22,.6) 80%,transparent);
+}
+nav a{
+  font-family:var(--mono);font-size:12px;letter-spacing:.08em;color:var(--ink-3);
+  border:1px solid var(--line);border-radius:99px;padding:6px 13px;white-space:nowrap;
+  transition:all .3s var(--ease);
+}
+nav a:hover{color:var(--silver);border-color:var(--line-2)}
+nav a.on{color:var(--rust);border-color:var(--rust);background:var(--rust-dim)}
+
+/* ---------- 版面 ---------- */
+main{position:relative;z-index:1;max-width:1280px;margin:0 auto;padding:12px clamp(16px,4vw,48px) 90px}
+section{padding:34px 0 8px;scroll-margin-top:120px}
+.sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:20px}
+.sec-head .no{font-family:var(--mono);font-size:12px;color:var(--rust);letter-spacing:.15em}
+.sec-head h2{font-size:clamp(19px,2.4vw,25px);font-weight:600;letter-spacing:.02em}
+.sec-head .en{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ink-4);text-transform:uppercase}
+.sec-head .rule{flex:1;height:1px;background:linear-gradient(90deg,var(--line-2),transparent)}
+
+/* ---------- 胶卷式横向画廊 ---------- */
+.strip-wrap{
+  position:relative;
+  padding:15px 0;
+  background:linear-gradient(rgba(230,236,238,.028),rgba(230,236,238,.028));
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+/* 上下两条齿孔（固定在片门上，不随内容滚动） */
+.strip-wrap::before,.strip-wrap::after{
+  content:"";position:absolute;left:0;right:0;height:8px;pointer-events:none;
+  background-image:repeating-linear-gradient(90deg,
+    rgba(230,236,238,.16) 0 9px, transparent 9px 27px);
+}
+.strip-wrap::before{top:4px}
+.strip-wrap::after{bottom:4px}
+
+.strip{
+  display:flex;gap:12px;
+  overflow-x:auto;overflow-y:hidden;
+  padding:2px clamp(12px,3vw,20px);
+  scrollbar-width:thin;scrollbar-color:rgba(180,98,58,.55) transparent;
+  -webkit-overflow-scrolling:touch;
+  overscroll-behavior-x:contain;
+  scroll-snap-type:x proximity;
+  cursor:grab;
+  user-select:none;-webkit-user-select:none;
+}
+.strip img{-webkit-user-drag:none;user-select:none}
+.strip.dragging{cursor:grabbing;scroll-snap-type:none}
+.strip::-webkit-scrollbar{height:4px}
+.strip::-webkit-scrollbar-track{background:transparent}
+.strip::-webkit-scrollbar-thumb{background:rgba(180,98,58,.55);border-radius:2px}
+.strip::-webkit-scrollbar-thumb:hover{background:var(--rust)}
+
+.card{
+  position:relative;flex:0 0 auto;scroll-snap-align:start;
+  width:clamp(142px,14vw,190px);
+  border-radius:9px;overflow:hidden;cursor:zoom-in;
+  background:var(--panel);border:1px solid var(--line);
+  transition:transform .45s var(--ease),border-color .45s var(--ease),box-shadow .45s var(--ease);
+}
+.fav .card{width:clamp(160px,16vw,215px)}
+.card:hover{transform:translateY(-5px);border-color:rgba(180,98,58,.55);box-shadow:0 18px 40px -18px rgba(0,0,0,.75)}
+.card img{display:block;width:100%;height:auto;aspect-ratio:2/3;object-fit:cover;background:var(--bg-2)}
+
+/* 左右翻页按钮（悬停胶卷时出现） */
+.sarrow{
+  position:absolute;top:50%;transform:translateY(-50%);
+  width:36px;height:36px;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-size:18px;line-height:1;
+  color:var(--silver);background:rgba(12,16,18,.82);
+  border:1px solid var(--line-2);border-radius:99px;cursor:pointer;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  opacity:0;transition:opacity .3s var(--ease),color .3s var(--ease),border-color .3s var(--ease);
+  z-index:5;
+}
+.sarrow.left{left:10px}
+.sarrow.right{right:10px}
+.strip-wrap:hover .sarrow{opacity:1}
+.sarrow:hover{color:var(--rust);border-color:var(--rust)}
+.sarrow[disabled]{opacity:0 !important;pointer-events:none}
+.card .cap{
+  position:absolute;left:0;right:0;bottom:0;
+  padding:26px 12px 10px;
+  background:linear-gradient(transparent,rgba(8,11,12,.88));
+  opacity:0;transform:translateY(6px);
+  transition:opacity .35s var(--ease),transform .35s var(--ease);
+}
+.card:hover .cap{opacity:1;transform:none}
+.cap .t{font-size:13px;font-weight:600;color:var(--ink);line-height:1.35}
+.cap .s{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:var(--ink-3);margin-top:2px}
+/* 触屏无 hover：片名常显 */
+@media (hover:none){ .card .cap{opacity:1;transform:none} .sarrow{display:none} }
+.card .idx{
+  position:absolute;top:8px;left:8px;
+  font-family:var(--mono);font-size:10px;color:var(--ink-2);
+  background:rgba(8,11,12,.55);border:1px solid var(--line);
+  border-radius:5px;padding:2px 6px;backdrop-filter:blur(4px);
+}
+.card.fav-card{border-color:rgba(180,98,58,.4)}
+.card.fav-card .idx{color:var(--rust);border-color:rgba(180,98,58,.5)}
+
+/* 页脚 */
+footer{
+  border-top:1px solid var(--line);margin-top:70px;
+  padding:26px clamp(16px,4vw,48px);
+  display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--ink-4);
+}
+/* 分割线之上的那句小字 */
+.sign{
+  text-align:center;margin:0 0 22px;padding:0 clamp(16px,4vw,48px);
+  font-family:var(--zh);font-size:12.5px;letter-spacing:.02em;color:var(--ink-3);
+}
+
+/* ---------- 灯箱 ---------- */
+.lb{
+  position:fixed;inset:0;z-index:100;display:none;
+  background:rgba(8,11,12,.94);
+  backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+}
+.lb.open{display:flex;align-items:center;justify-content:center}
+.lb img{max-width:min(92vw,560px);max-height:86vh;border-radius:8px;box-shadow:0 30px 80px -20px rgba(0,0,0,.9)}
+.lb .meta{
+  position:absolute;left:0;right:0;bottom:26px;text-align:center;
+  font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--ink-2);
+}
+.lb .meta b{color:var(--rust);font-weight:500}
+.lb .x,.lb .prev,.lb .next{
+  position:absolute;font-family:var(--mono);color:var(--ink-3);cursor:pointer;
+  border:1px solid var(--line-2);border-radius:99px;background:rgba(15,20,22,.5);
+  width:40px;height:40px;display:flex;align-items:center;justify-content:center;
+  font-size:16px;transition:all .3s var(--ease);user-select:none;
+}
+.lb .x:hover,.lb .prev:hover,.lb .next:hover{color:var(--rust);border-color:var(--rust)}
+.lb .x{top:22px;right:22px}
+.lb .prev{left:22px;top:50%;transform:translateY(-50%)}
+.lb .next{right:22px;top:50%;transform:translateY(-50%)}
+
+@media (max-width:560px){
+  .card{width:132px}
+  .fav .card{width:150px}
+  .strip{gap:9px;padding:2px 12px}
+  .lb .prev{left:10px}.lb .next{right:10px}
+  header{padding:12px 16px}
+  nav{top:49px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">FILM&nbsp;ARCHIVE <em>/</em> 影视档</div>
+  <a class="back" id="backBtn" href="index.html">← 返回主页</a>
+</header>
+
+<nav id="nav">
+  <a href="#fav">年度最爱</a>
+  <a href="#movie">电影</a>
+  <a href="#marvel">没人能不看漫威</a>
+  <a href="#anime">动画电影</a>
+  <a href="#series">剧集</a>
+</nav>
+
+<main>
+
+  <section id="fav" class="fav">
+    <div class="sec-head">
+      <span class="no">00</span><h2>年度最爱</h2>
+      <span class="en">Project Hail Mary</span><span class="rule"></span>
+    </div>
+    <div class="strip-wrap"><div class="strip">
+      <figure class="card fav-card" data-title="Project Hail Mary · 挽救计划" data-sub="海报">
+        <img src="assets/film/phm-1.jpg" alt="Project Hail Mary 海报" loading="lazy"><span class="idx">PHM</span>
+        <figcaption class="cap"><div class="t">Project Hail Mary</div><div class="s">挽救计划 · 海报</div></figcaption>
+      </figure>
+      <figure class="card fav-card" data-title="Project Hail Mary · 挽救计划" data-sub="剧照">
+        <img src="assets/film/phm-2.jpg" alt="Project Hail Mary 剧照" loading="lazy"><span class="idx">PHM</span>
+        <figcaption class="cap"><div class="t">Project Hail Mary</div><div class="s">挽救计划 · 剧照</div></figcaption>
+      </figure>
+      <figure class="card fav-card" data-title="Project Hail Mary · 挽救计划" data-sub="海报">
+        <img src="assets/film/phm-3.jpg" alt="Project Hail Mary 海报" loading="lazy"><span class="idx">PHM</span>
+        <figcaption class="cap"><div class="t">Project Hail Mary</div><div class="s">挽救计划 · 海报</div></figcaption>
+      </figure>
+      <figure class="card fav-card" data-title="Project Hail Mary · 挽救计划" data-sub="剧照">
+        <img src="assets/film/phm-4.jpg" alt="Project Hail Mary 剧照" loading="lazy"><span class="idx">PHM</span>
+        <figcaption class="cap"><div class="t">Project Hail Mary</div><div class="s">挽救计划 · 剧照</div></figcaption>
+      </figure>
+      <figure class="card fav-card" data-title="Project Hail Mary · 挽救计划" data-sub="剧照">
+        <img src="assets/film/phm-5.jpg" alt="Project Hail Mary 剧照" loading="lazy"><span class="idx">PHM</span>
+        <figcaption class="cap"><div class="t">Project Hail Mary</div><div class="s">挽救计划 · 剧照</div></figcaption>
+      </figure>
+      <figure class="card fav-card" data-title="Project Hail Mary · 挽救计划" data-sub="剧照">
+        <img src="assets/film/phm-6.jpg" alt="Project Hail Mary 剧照" loading="lazy"><span class="idx">PHM</span>
+        <figcaption class="cap"><div class="t">Project Hail Mary</div><div class="s">挽救计划 · 剧照</div></figcaption>
+      </figure>
+    </div>
+      <button class="sarrow left" aria-label="向左">‹</button>
+      <button class="sarrow right" aria-label="向右">›</button>
+    </div>
+  </section>
+
+  <section id="movie">
+    <div class="sec-head">
+      <span class="no">01</span><h2>电影</h2>
+      <span class="en">Feature Films</span><span class="rule"></span>
+    </div>
+    <div class="strip-wrap"><div class="strip">
+      <figure class="card" data-title="Hacksaw Ridge · 血战钢锯岭" data-sub="2016">
+        <img src="assets/film/hacksaw-ridge.jpg" alt="血战钢锯岭 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">血战钢锯岭</div><div class="s">HACKSAW RIDGE</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Detachment · 超脱" data-sub="2011">
+        <img src="assets/film/detachment.jpg" alt="超脱 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">超脱</div><div class="s">DETACHMENT</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Dune · 沙丘" data-sub="2021">
+        <img src="assets/film/dune.jpg" alt="沙丘 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">沙丘</div><div class="s">DUNE</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Little Women · 小妇人" data-sub="2019">
+        <img src="assets/film/little-women.jpg" alt="小妇人 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">小妇人</div><div class="s">LITTLE WOMEN</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Atonement · 赎罪" data-sub="2007">
+        <img src="assets/film/atonement.jpg" alt="赎罪 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">赎罪</div><div class="s">ATONEMENT</div></figcaption>
+      </figure>
+      <figure class="card" data-title="tick, tick...BOOM! · 倒数时刻" data-sub="2021">
+        <img src="assets/film/tick-tick-boom.jpg" alt="倒数时刻 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">倒数时刻</div><div class="s">TICK, TICK...BOOM!</div></figcaption>
+      </figure>
+      <figure class="card" data-title="The Social Network · 社交网络" data-sub="2010">
+        <img src="assets/film/social-network.jpg" alt="社交网络 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">社交网络</div><div class="s">THE SOCIAL NETWORK</div></figcaption>
+      </figure>
+    </div>
+      <button class="sarrow left" aria-label="向左">‹</button>
+      <button class="sarrow right" aria-label="向右">›</button>
+    </div>
+  </section>
+
+  <section id="marvel">
+    <div class="sec-head">
+      <span class="no">02</span><h2>没人能不看漫威</h2>
+      <span class="en">Marvel</span><span class="rule"></span>
+    </div>
+    <div class="strip-wrap"><div class="strip">
+      <figure class="card" data-title="Spider-Man · 蜘蛛侠系列" data-sub="合集">
+        <img src="assets/film/spider-man.jpg" alt="蜘蛛侠系列海报合集" loading="lazy">
+        <figcaption class="cap"><div class="t">蜘蛛侠系列</div><div class="s">SPIDER-MAN COLLECTION</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Avengers: Endgame · 复仇者联盟4" data-sub="2019">
+        <img src="assets/film/endgame.jpg" alt="复仇者联盟4 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">复仇者联盟4：终局之战</div><div class="s">AVENGERS: ENDGAME</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Deadpool · 死侍" data-sub="2016">
+        <img src="assets/film/deadpool.jpg" alt="死侍 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">死侍</div><div class="s">DEADPOOL</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Loki · 洛基" data-sub="2021 · 剧集">
+        <img src="assets/film/loki.jpg" alt="洛基 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">洛基</div><div class="s">LOKI · SEASON 1</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Venom · 毒液" data-sub="2018">
+        <img src="assets/film/venom.jpg" alt="毒液 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">毒液</div><div class="s">VENOM</div></figcaption>
+      </figure>
+    </div>
+      <button class="sarrow left" aria-label="向左">‹</button>
+      <button class="sarrow right" aria-label="向右">›</button>
+    </div>
+  </section>
+
+  <section id="anime">
+    <div class="sec-head">
+      <span class="no">03</span><h2>动画电影</h2>
+      <span class="en">Animation</span><span class="rule"></span>
+    </div>
+    <div class="strip-wrap"><div class="strip">
+      <figure class="card" data-title="Hotel Transylvania · 精灵旅社" data-sub="2012">
+        <img src="assets/film/hotel-transylvania.jpg" alt="精灵旅社 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">精灵旅社</div><div class="s">HOTEL TRANSYLVANIA</div></figcaption>
+      </figure>
+      <figure class="card" data-title="How to Train Your Dragon · 驯龙高手" data-sub="2010">
+        <img src="assets/film/how-to-train-your-dragon.jpg" alt="驯龙高手 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">驯龙高手</div><div class="s">HOW TO TRAIN YOUR DRAGON</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Cars 2 · 赛车总动员2" data-sub="2011">
+        <img src="assets/film/cars-2.jpg" alt="赛车总动员2 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">赛车总动员2</div><div class="s">CARS 2</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Alita: Battle Angel · 阿丽塔" data-sub="2019">
+        <img src="assets/film/alita.jpg" alt="阿丽塔 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">阿丽塔：战斗天使</div><div class="s">ALITA: BATTLE ANGEL</div></figcaption>
+      </figure>
+      <figure class="card" data-title="WALL·E · 机器人总动员" data-sub="2008">
+        <img src="assets/film/wall-e.jpg" alt="机器人总动员 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">机器人总动员</div><div class="s">WALL·E</div></figcaption>
+      </figure>
+    </div>
+      <button class="sarrow left" aria-label="向左">‹</button>
+      <button class="sarrow right" aria-label="向右">›</button>
+    </div>
+  </section>
+
+  <section id="series">
+    <div class="sec-head">
+      <span class="no">04</span><h2>剧集</h2>
+      <span class="en">TV Series</span><span class="rule"></span>
+    </div>
+    <div class="strip-wrap"><div class="strip">
+      <figure class="card" data-title="Supernatural · 邪恶力量" data-sub="2005">
+        <img src="assets/film/supernatural.jpg" alt="邪恶力量 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">邪恶力量</div><div class="s">SUPERNATURAL</div></figcaption>
+      </figure>
+      <figure class="card" data-title="Breaking Bad · 绝命毒师" data-sub="2008">
+        <img src="assets/film/breaking-bad.jpg" alt="绝命毒师 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">绝命毒师</div><div class="s">BREAKING BAD</div></figcaption>
+      </figure>
+      <figure class="card" data-title="The Boys · 黑袍纠察队" data-sub="2019">
+        <img src="assets/film/the-boys.jpg" alt="黑袍纠察队 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">黑袍纠察队</div><div class="s">THE BOYS</div></figcaption>
+      </figure>
+      <figure class="card" data-title="SKAM · 羞耻" data-sub="挪威 · 2015">
+        <img src="assets/film/skam.jpg" alt="SKAM 海报" loading="lazy">
+        <figcaption class="cap"><div class="t">羞耻</div><div class="s">SKAM · SEASON 3</div></figcaption>
+      </figure>
+    </div>
+      <button class="sarrow left" aria-label="向左">‹</button>
+      <button class="sarrow right" aria-label="向右">›</button>
+    </div>
+  </section>
+
+</main>
+
+<p class="sign">啥都爱看，随便放了一点在这里 :)</p>
+
+<footer>
+  <span>FILM ARCHIVE — 27 ITEMS / 5 SHELVES</span>
+  <span><a href="index.html">ZHANG YUYAN</a> · 智能医学工程</span>
+</footer>
+
+<!-- 灯箱 -->
+<div class="lb" id="lb" role="dialog" aria-modal="true">
+  <span class="x" id="lb-x">✕</span>
+  <span class="prev" id="lb-prev">‹</span>
+  <img id="lb-img" src="" alt="">
+  <span class="next" id="lb-next">›</span>
+  <div class="meta" id="lb-meta"></div>
+</div>
+
+<script>
+/* ---------- 胶卷横滑：滚轮转横向 / 触控板 / 触屏 ---------- */
+(function(){
+  var wraps = Array.prototype.slice.call(document.querySelectorAll('.strip-wrap'));
+
+  wraps.forEach(function(wrap){
+    var strip = wrap.querySelector('.strip'),
+        bl = wrap.querySelector('.sarrow.left'),
+        br = wrap.querySelector('.sarrow.right');
+
+    function maxScroll(){ return strip.scrollWidth - strip.clientWidth; }
+    function syncArrows(){
+      var max = maxScroll();
+      if (bl) bl.disabled = strip.scrollLeft <= 1;
+      if (br) br.disabled = strip.scrollLeft >= max - 1;
+    }
+    strip.addEventListener('scroll', syncArrows, { passive:true });
+    window.addEventListener('resize', syncArrows);
+    syncArrows();
+
+    /* 滚轮：纵向滚轮 → 横向滑动；到头后放行，页面继续纵向滚
+       触控板的双指左右（deltaX）与触屏滑动由浏览器原生 overflow 处理 */
+    strip.addEventListener('wheel', function(e){
+      if (e.ctrlKey) return;                                  // 捏合缩放不拦截
+      if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;    // 本来就是横向手势
+      var max = maxScroll();
+      if (max <= 0) return;
+      var dy = e.deltaY * (e.deltaMode === 1 ? 16 : 1);       // 行模式换算成像素
+      if ((dy < 0 && strip.scrollLeft <= 0) || (dy > 0 && strip.scrollLeft >= max - 1)) return;
+      e.preventDefault();
+      strip.scrollLeft += dy;
+    }, { passive:false });
+
+    /* 鼠标按住拖拽也能拖（桌面端顺手） */
+    var down = false, sx = 0, sl = 0, moved = false;
+    strip.addEventListener('pointerdown', function(e){
+      if (e.pointerType === 'touch') return;                  // 触屏交给原生滚动
+      down = true; moved = false; sx = e.clientX; sl = strip.scrollLeft;
+    });
+    strip.addEventListener('pointermove', function(e){
+      if (!down) return;
+      var dx = e.clientX - sx;
+      if (Math.abs(dx) > 4){ moved = true; strip.classList.add('dragging'); }
+      if (moved){ strip.scrollLeft = sl - dx; e.preventDefault(); }
+    });
+    function up(){ down = false; strip.classList.remove('dragging'); }
+    strip.addEventListener('pointerup', up);
+    strip.addEventListener('pointerleave', up);
+    /* 拖拽结束别误触发灯箱 */
+    strip.addEventListener('click', function(e){
+      if (moved){ e.stopPropagation(); moved = false; }
+    }, true);
+
+    /* 左右翻页按钮 */
+    function page(dir){
+      strip.scrollBy({ left: dir * strip.clientWidth * 0.8, behavior:'smooth' });
+    }
+    if (bl) bl.addEventListener('click', function(){ page(-1); });
+    if (br) br.addEventListener('click', function(){ page(1); });
+  });
+})();
+
+/* ---------- 灯箱：收集全部卡片，支持 ← → / Esc ---------- */
+(function(){
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.card'));
+  var lb = document.getElementById('lb'),
+      img = document.getElementById('lb-img'),
+      meta = document.getElementById('lb-meta'),
+      cur = -1;
+
+  function show(i){
+    cur = (i + cards.length) % cards.length;
+    var c = cards[cur], big = c.querySelector('img');
+    img.src = big.src;
+    img.alt = big.alt;
+    meta.innerHTML = '<b>' + (cur+1) + '/' + cards.length + '</b> — ' + c.dataset.title +
+                     (c.dataset.sub ? ' · ' + c.dataset.sub : '');
+    lb.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+  function close(){ lb.classList.remove('open'); document.body.style.overflow = ''; }
+
+  cards.forEach(function(c, i){ c.addEventListener('click', function(){ show(i); }); });
+  document.getElementById('lb-x').addEventListener('click', close);
+  document.getElementById('lb-prev').addEventListener('click', function(e){ e.stopPropagation(); show(cur-1); });
+  document.getElementById('lb-next').addEventListener('click', function(e){ e.stopPropagation(); show(cur+1); });
+  lb.addEventListener('click', function(e){ if (e.target === lb) close(); });
+  document.addEventListener('keydown', function(e){
+    if (!lb.classList.contains('open')) return;
+    if (e.key === 'Escape') close();
+    else if (e.key === 'ArrowLeft') show(cur-1);
+    else if (e.key === 'ArrowRight') show(cur+1);
+  });
+
+  /* ---------- 分类导航高亮（滚动监听） ---------- */
+  var links = Array.prototype.slice.call(document.querySelectorAll('#nav a')),
+      secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  function sync(){
+    var y = window.scrollY + 160, idx = 0;
+    secs.forEach(function(s, i){ if (s && s.offsetTop <= y) idx = i; });
+    links.forEach(function(a, i){ a.classList.toggle('on', i === idx); });
+  }
+  window.addEventListener('scroll', sync, { passive:true });
+  sync();
+})();
+
+/* ---------- 被主页以 iframe 内嵌时：「返回主页」改为关掉上层面板 ---------- */
+(function(){
+  var back = document.getElementById('backBtn');
+  if (!back) return;
+  var framed = (window.self !== window.top);   // 在 iframe 里
+  if (framed) back.textContent = '← 返回';
+  else return;
+  back.addEventListener('click', function(e){
+    e.preventDefault();
+    try { window.parent.postMessage({ type:'film-close' }, '*'); } catch (err) { /* 跨域兜底 */ }
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' || e.key === 'Esc'){
+      try { window.parent.postMessage({ type:'film-close' }, '*'); } catch (err) {}
+    }
+  });
+})();
+</script>
+</body>
+</html>

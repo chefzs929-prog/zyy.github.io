@@ -1349,7 +1349,7 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
   font-family:var(--mono);font-size:9px;letter-spacing:.24em;
   text-transform:uppercase;color:var(--ink-4);margin-right:-.24em;
 }
-.ilabel[data-k="music"],.ilabel[data-k="edit"]{pointer-events:auto}
+.ilabel[data-k="music"],.ilabel[data-k="film"],.ilabel[data-k="edit"],.ilabel[data-k="race"]{pointer-events:auto}
 .ilabel__hint{
   font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;
   color:var(--ink-3);margin-right:-.18em;
@@ -1360,9 +1360,40 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 .ilabel.is-hot .ilabel__en{color:var(--ink-2)}
 
 /* ══════════════════════════════════════════════════════════
+   03.4 FILM（影视档 · iframe 覆盖面板）
+   影视档是独立一页（吸顶导航 / 胶卷横滑 / 灯箱），整页嵌进来最省事：
+   不把 27 张海报的 HTML/CSS/JS 混进首页，也不和首页的变量、手势打架。
+   z-index 70 —— 与音乐 / 剪辑面板同级，压住分页器(65)，低于颗粒层(80)。
+   ══════════════════════════════════════════════════════════ */
+.film{
+  position:fixed;inset:0;z-index:70;overflow:hidden;
+  background:rgba(9,12,13,.98);
+  -webkit-backdrop-filter:blur(18px) saturate(.85);
+  backdrop-filter:blur(18px) saturate(.85);
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .42s var(--ease), visibility 0s linear .42s;
+}
+.film.is-open{
+  opacity:1;visibility:visible;pointer-events:auto;
+  transition:opacity .42s var(--ease), visibility 0s linear 0s;
+}
+.film__frame{
+  display:block;width:100%;height:100%;border:0;background:transparent;
+  -webkit-overflow-scrolling:touch;
+}
+/* 收在右下角：右上角留给影视档自己的「← 返回」 */
+.film__close{
+  position:absolute;bottom:calc(env(safe-area-inset-bottom, 0px) + 20px);right:16px;z-index:9;
+  width:38px;height:38px;display:flex;align-items:center;justify-content:center;
+  font-size:15px;line-height:1;color:var(--ink-2);
+  background:rgba(9,12,13,.6);border:1px solid var(--line-2);border-radius:99px;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+}
+
+/* ══════════════════════════════════════════════════════════
    03.1 MUSIC（移动版竖式唱机）
    竖版：页眉 → 唱机 → 曲名 → 控制条 → 进度 → 平台跳转 → 小字
-   唱片箱改成底部抽屉（点转盘唤出），另有「三条横线」唤出文字歌单。
+   唱片箱改成底部抽屉（点转盘唤出）；文字版歌单已按用户要求删除（2026-09-21）。
    z-index 70 —— 压住分页器(65)与桌面版入口(66)，低于颗粒层 .fx(80)。
    ══════════════════════════════════════════════════════════ */
 .mdeck{
@@ -1576,42 +1607,6 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
     linear-gradient(var(--accent,#fff),var(--accent,#fff)) 11px 100%/3px 65% no-repeat;
 }
 
-/* ── 文字版歌单（三条横线唤出）── */
-.mlist{
-  position:absolute;inset:0;z-index:76;
-  display:flex;flex-direction:column;
-  padding:calc(env(safe-area-inset-top,0px) + 14px) 14px calc(env(safe-area-inset-bottom,0px) + 14px);
-  background:rgba(11,14,16,.98);
-  transform:translateY(100%);
-  transition:transform .44s var(--ease);
-}
-.mlist.is-open{transform:none}
-.mlist__hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex:0 0 auto}
-.mlist__ttl{font-family:var(--mono);font-size:9px;letter-spacing:.24em;text-transform:uppercase;color:var(--ink-4)}
-.mlist__close{
-  width:40px;height:40px;background:none;border:1px solid var(--line);
-  color:var(--ink-3);font-size:14px;line-height:1;
-}
-.mlist__tabs{display:flex;gap:8px;margin-bottom:10px;flex:0 0 auto}
-.mlist__tab{
-  flex:1;min-height:40px;border:1px solid var(--line);background:none;
-  color:var(--ink-3);font-family:var(--zh);font-size:13px;letter-spacing:.06em;
-}
-.mlist__tab.is-on{border-color:var(--accent-line,var(--line-2));color:var(--ink);background:var(--accent-glow,transparent)}
-.mlist__ol{flex:1 1 auto;overflow-y:auto;-webkit-overflow-scrolling:touch;list-style:none}
-.mlist__row{
-  display:flex;align-items:baseline;gap:9px;width:100%;text-align:left;
-  padding:11px 4px;border-bottom:1px solid var(--line);
-  background:none;color:var(--ink-2);font-family:var(--zh);font-size:13.5px;
-}
-.mlist__row.is-on{color:var(--ink);background:var(--accent-glow,transparent)}
-.mlist__n{font-family:var(--mono);font-size:9px;color:var(--ink-4);min-width:20px}
-.mlist__t{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.mlist__a{
-  flex:0 1 auto;max-width:38%;font-size:11px;color:var(--ink-4);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
-}
-
 /* ══════════════════════════════════════════════════════════
    03.2 EDITING（移动版剪辑作品集）
    ------------------------------------------------------------
@@ -1623,6 +1618,90 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
        划到头不会把整站一起拖走（iOS 的橡皮筋会穿透，必须写）。
    z-index 70 —— 与唱机面板同级，低于 .fx(80)。
    ══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   03.3 SPORTS（移动版运动面板）
+   全屏覆盖，顶部标题，下方三张运动照片扇形散开。
+   ══════════════════════════════════════════════════════════ */
+.msport{
+  position:fixed;inset:0;z-index:70;
+  display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 0 calc(env(safe-area-inset-bottom,0px) + 10px);
+  /* 锈银网格：银线打格 + 锈橙微光，与全站金属质感同调 */
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(180,98,58,.075), transparent 58%),
+    radial-gradient(ellipse at 50% 86%, rgba(180,98,58,.045), transparent 56%),
+    repeating-linear-gradient(0deg,  rgba(196,207,212,.05) 0 1px, transparent 1px 38px),
+    repeating-linear-gradient(90deg, rgba(196,207,212,.05) 0 1px, transparent 1px 38px),
+    linear-gradient(180deg,#0d1113 0%,#090c0d 100%);
+  opacity:0;visibility:hidden;transform:translateY(2.5%);
+  transition:opacity .45s var(--ease), transform .5s var(--ease),
+             visibility 0s linear .5s;
+  overflow:hidden;
+}
+.msport.is-open{
+  opacity:1;visibility:visible;transform:none;
+  transition:opacity .45s var(--ease), transform .5s var(--ease),
+             visibility 0s linear 0s;
+}
+.msport__head{position:relative;flex:0 0 auto;padding:0 16px;text-align:center}
+.msport__head .phead__idx{font-size:9px;margin-bottom:8px}
+.msport__head .phead__title{font-size:clamp(24px,7.4vw,34px)}
+.msport__head .phead__zh{font-size:13px;margin-top:6px}
+.msport__subt{margin-top:8px;font-size:12px;letter-spacing:.24em;color:var(--ink-4);font-family:var(--mono)}
+.msport__close{
+  position:absolute;right:12px;top:-6px;width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--line);color:var(--ink-3);
+  font-size:14px;line-height:1;
+}
+.msport__fan{
+  flex:1 1 auto;min-height:0;
+  position:relative;display:flex;align-items:center;justify-content:center;
+  perspective:900px;margin-top:14px;
+}
+.msport__card{
+  /* 触摸设备没有 hover：静止叠成一摞，点一下整组才展开（.is-spread） */
+  --tx:0px;--ty:0px;--rot:0deg;
+  position:absolute;width:min(168px,38vw);aspect-ratio:3/4;
+  border-radius:8px;overflow:hidden;background:var(--bg-2);
+  border:1px solid var(--line-2);box-shadow:0 14px 34px rgba(0,0,0,.5);
+  transform-origin:center center;
+  transform:translate(var(--tx),var(--ty)) rotate(var(--rot));
+  transition:transform .55s var(--ease), box-shadow .4s var(--ease), opacity .45s var(--ease), z-index 0s;
+}
+.msport__card img{width:100%;height:100%;object-fit:cover;display:block}
+
+/* 静止：微微错开的一小摞，小屏上省地方 */
+.msport__card:nth-child(1){ --tx:-8px; --ty:9px;  --rot:-2.5deg; z-index:1; }
+.msport__card:nth-child(2){ --tx:0px;  --ty:0px;  --rot:0deg;    z-index:2; }
+.msport__card:nth-child(3){ --tx:8px;  --ty:-9px; --rot:2.5deg;  z-index:3; }
+
+/* 展开：整叠向上抽出 + 左右撒开 + 各自旋转 */
+.msport__fan.is-spread .msport__card:nth-child(1){ --tx:-24vw; --ty:-32px; --rot:-11deg; }
+.msport__fan.is-spread .msport__card:nth-child(2){ --tx:0px;   --ty:-50px; --rot:0deg; }
+.msport__fan.is-spread .msport__card:nth-child(3){ --tx:24vw;  --ty:-32px; --rot:11deg; }
+
+/* 入场：从下方淡入落位 */
+.msport__fan:not(.is-dealt) .msport__card{
+  opacity:0;
+  transform:translate(var(--tx),calc(var(--ty) + 22px)) rotate(0deg) scale(.94);
+}
+.msport__fan.is-dealt .msport__card{opacity:1}
+.msport__fan.is-dealt .msport__card:nth-child(1){ transition-delay:0ms; }
+.msport__fan.is-dealt .msport__card:nth-child(2){ transition-delay:70ms; }
+.msport__fan.is-dealt .msport__card:nth-child(3){ transition-delay:140ms; }
+
+/* 单张：点一下提到第一图层，不放大 */
+.msport__card.is-front{z-index:10;box-shadow:0 26px 58px rgba(0,0,0,.62)}
+
+/* 底部一行操作提示，展开后就淡掉 */
+.msport__hint{
+  flex:0 0 auto;text-align:center;padding:6px 16px 4px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.2em;color:var(--ink-4);
+  transition:opacity .4s var(--ease);
+}
+.msport__fan.is-spread + .msport__hint{opacity:0}
+
 .mclips{
   position:fixed;inset:0;z-index:70;
   display:flex;flex-direction:column;
@@ -1771,6 +1850,167 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
   .pager{bottom:calc(env(safe-area-inset-bottom,0px) + 8px)}
   .scrollhint{bottom:calc(env(safe-area-inset-bottom,0px) + 46px)}
   .cover-inner{gap:10px}
+}
+
+/* ══════════════════════════════════════════════════════════
+   03.3 RACING（移动版竞速板块）
+   与桌面版共用 assets/racing/ 那 13 张图，但触屏没有 hover，
+   桌面版那套「方向感知悬停出词 / hover 横向展开」在手机上不成立，按手指重做：
+     ① 词常驻显示在卡片左下角（不用悬停去揭示它），点卡片 = 组内切图；
+     ② MotoGP 后两张改成两列平铺、文案常驻，不再靠 hover 展开；
+     ③ BEAUTY → BEAST 的故障动画改成「卡片滚进视野后 1.5s」触发，滚出去复位。
+   z-index 70 —— 与音乐 / 剪辑 / 运动面板同级。
+   ══════════════════════════════════════════════════════════ */
+.mrace{
+  position:fixed;inset:0;z-index:70;
+  display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top,0px) + 14px) 0 calc(env(safe-area-inset-bottom,0px) + 10px);
+  background:linear-gradient(180deg,#0d1113 0%,#090c0d 100%);
+  opacity:0;visibility:hidden;transform:translateY(2.5%);
+  transition:opacity .45s var(--ease), transform .5s var(--ease),
+             visibility 0s linear .5s;
+  overflow:hidden;
+}
+.mrace.is-open{
+  opacity:1;visibility:visible;transform:none;
+  transition:opacity .45s var(--ease), transform .5s var(--ease),
+             visibility 0s linear 0s;
+}
+.mrace__head{position:relative;flex:0 0 auto;padding:0 16px}
+.mrace__head .phead__idx{font-size:9px;margin-bottom:8px}
+.mrace__head .phead__title{font-size:clamp(24px,7.4vw,34px)}
+.mrace__head .phead__zh{font-size:13px;margin-top:6px}
+.mrace__subt{margin-top:8px;font-size:10.5px;line-height:1.7;letter-spacing:.16em;color:var(--ink-4);font-family:var(--mono)}
+.mrace__close{
+  position:absolute;right:12px;top:-6px;width:44px;height:44px;
+  display:flex;align-items:center;justify-content:center;
+  background:none;border:1px solid var(--line);color:var(--ink-3);
+  font-size:14px;line-height:1;
+}
+
+/* ── 唯一的滚动容器 ── */
+.mrace__stage{
+  flex:1 1 auto;min-height:0;
+  padding:18px 16px 26px;
+  overflow-y:auto;-webkit-overflow-scrolling:touch;
+  overscroll-behavior:contain;
+  touch-action:pan-y;
+  scrollbar-width:none;
+}
+.mrace__stage::-webkit-scrollbar{width:0}
+
+.mrace__block{margin-bottom:26px}
+.mrace__kicker{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.mrace__kicker .t{font-family:var(--mono);font-size:10.5px;letter-spacing:.3em;color:var(--rust)}
+.mrace__kicker::after{content:"";flex:1;height:1px;background:var(--line)}
+/* 「四轮 / 两轮」不用文字，用轮胎图标数出来：F1 四个、MotoGP 两个 */
+.tyres{display:inline-grid;gap:4px;grid-auto-flow:column}
+.tyres .tyre{width:13px;height:13px;display:block;color:var(--ink-3)}
+
+/* ── 排布：F1 单列竖排；MotoGP 首图整幅 + 后两张两列 ── */
+.mrstack{display:flex;flex-direction:column;gap:12px}
+.mrgal{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ---------- 卡片 ---------- */
+.mracard{
+  position:relative;overflow:hidden;margin:0;
+  aspect-ratio:16/10;background:var(--bg-2);
+  border:1px solid var(--line);border-radius:4px;
+  transition:transform .18s var(--ease);
+}
+.mracard--tall{aspect-ratio:4/5}
+.mracard--wide{aspect-ratio:16/10}
+.mracard--gal{aspect-ratio:3/4}
+.mracard--tap:active{transform:scale(.988)}
+.mracard img{
+  width:100%;height:100%;object-fit:cover;display:block;
+  transition:opacity .28s var(--ease);
+}
+.mracard img.is-fade{opacity:0}
+/* beauty-6（新加坡夜战）原图更瘦长，4/5 裁切时往上吃太多，取景整体下移 */
+.mracard img[src*="beauty-6"]{object-position:center 72%}
+
+.mracard__shade{
+  position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to top, rgba(4,6,7,.82), rgba(4,6,7,0) 48%);
+}
+
+/* 词常驻：触屏没有 hover，就直接摆在左下角当标题 */
+.mracard__word{
+  position:absolute;left:0;right:0;bottom:0;padding:0 14px 13px;
+  pointer-events:none;
+}
+.mracard__word b{
+  display:block;font-family:var(--sans);font-weight:700;
+  font-size:clamp(19px,6.2vw,26px);letter-spacing:.26em;text-indent:.26em;
+  line-height:1.15;color:#fff;
+  text-shadow:0 2px 16px rgba(0,0,0,.6);
+}
+.mracard__word .k{
+  display:block;font-family:var(--mono);font-size:8.5px;letter-spacing:.18em;
+  line-height:1.6;color:rgba(255,255,255,.62);margin-bottom:3px;
+}
+/* MotoGP 两张窄卡（约 170px 宽）：字号降档并允许换行，避免 The Greatest Comeback 被裁掉 */
+.mracard--gal .mracard__word{padding:0 12px 12px}
+.mracard--gal .mracard__word b{
+  font-size:13px;letter-spacing:.12em;text-indent:.12em;line-height:1.4;
+}
+.mracard--gal .mracard__word .k{white-space:normal;line-height:1.7}
+
+/* 封面格：两行小字 SPEED / Formula 1，不放大字、不参与切图 */
+.mracard--cover .cap{position:absolute;left:0;right:0;bottom:0;padding:0 15px 14px;pointer-events:none}
+.mracard--cover .cap .k{
+  display:block;font-family:var(--mono);font-size:9px;letter-spacing:.34em;
+  line-height:1.6;color:rgba(255,255,255,.66);margin-bottom:5px;
+}
+.mracard--cover .cap .k2{margin-bottom:0;color:rgba(255,255,255,.46);letter-spacing:.3em}
+
+.mracard__num{
+  position:absolute;right:13px;bottom:13px;pointer-events:none;
+  font-family:var(--mono);font-size:10px;letter-spacing:.2em;color:rgba(255,255,255,.85);
+}
+.mracard__hint{
+  position:absolute;right:13px;top:12px;pointer-events:none;
+  font-family:var(--mono);font-size:8.5px;letter-spacing:.24em;color:rgba(255,255,255,.55);
+}
+
+/* ---------- BEAUTY → BEAST：卡片滚进视野后 1.5s 起故障动画 ----------
+   桌面版靠 hover 触发，触屏改成 IntersectionObserver 触发（滚出去复位）。
+   两层伪元素做错位色偏 + 横向切片，颜色沿用全站锈橙 + 冷青 */
+.mracard__word b{position:relative}
+.mracard__word b.is-glitch{animation:wordGlitch .62s steps(1,end) 1}
+.mracard__word b.is-glitch::before,
+.mracard__word b.is-glitch::after{
+  content:attr(data-txt);position:absolute;left:0;right:0;top:0;
+  text-shadow:none;pointer-events:none;
+}
+.mracard__word b.is-glitch::before{color:#7fc4d6;animation:glitchSliceA .62s steps(1,end) 1}
+.mracard__word b.is-glitch::after{color:var(--rust);animation:glitchSliceB .62s steps(1,end) 1}
+@keyframes wordGlitch{
+  0%  {transform:translate(0) skewX(0)}
+  12% {transform:translate(-4px,1px) skewX(-7deg);text-shadow:3px 0 var(--rust), -3px 0 #7fc4d6}
+  26% {transform:translate(3px,-2px) skewX(6deg);text-shadow:-3px 0 var(--rust), 3px 0 #7fc4d6}
+  40% {transform:translate(-2px,0);opacity:.72}
+  54% {transform:translate(4px,1px) skewX(-4deg);text-shadow:2px 0 var(--rust), -2px 0 #7fc4d6}
+  68% {transform:translate(-3px,-1px);opacity:1}
+  84% {transform:translate(1px,0) skewX(2deg);text-shadow:-1px 0 var(--rust), 1px 0 #7fc4d6}
+  100%{transform:translate(0) skewX(0);text-shadow:0 2px 16px rgba(0,0,0,.6)}
+}
+@keyframes glitchSliceA{
+  0%  {clip-path:inset(2% 0 76% 0);transform:translate(-6px,0)}
+  18% {clip-path:inset(30% 0 44% 0);transform:translate(6px,0)}
+  38% {clip-path:inset(64% 0 10% 0);transform:translate(-5px,0)}
+  58% {clip-path:inset(12% 0 68% 0);transform:translate(4px,0)}
+  78% {clip-path:inset(50% 0 32% 0);transform:translate(-3px,0)}
+  100%{clip-path:inset(0 0 100% 0);transform:translate(0,0)}
+}
+@keyframes glitchSliceB{
+  0%  {clip-path:inset(58% 0 18% 0);transform:translate(6px,0)}
+  18% {clip-path:inset(8% 0 72% 0);transform:translate(-6px,0)}
+  38% {clip-path:inset(34% 0 40% 0);transform:translate(5px,0)}
+  58% {clip-path:inset(70% 0 6% 0);transform:translate(-4px,0)}
+  78% {clip-path:inset(22% 0 58% 0);transform:translate(3px,0)}
+  100%{clip-path:inset(0 0 100% 0);transform:translate(0,0)}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -1970,44 +2210,7 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
               </div>
             </section>
 
-            <section class="block reveal">
-              <h3 class="block__t"><i>03</i>兴趣爱好<em>Beyond</em></h3>
-              <div class="hobby-grid">
-                <div class="hcard" data-share="music">
-                  <div class="hcard__inner">
-                    <div class="hcard__face hcard__face--front">
-                      <span class="hcard__emoji">🎵</span>
-                    </div>
-                    <div class="hcard__face hcard__face--back">
-                      <span class="hcard__back-name">Music</span>
-                      <p class="hcard__desc">耳机是固定穿搭，流行摇滚电子啥都听。</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="hcard">
-                  <div class="hcard__inner">
-                    <div class="hcard__face hcard__face--front">
-                      <span class="hcard__emoji">🎾</span>
-                    </div>
-                    <div class="hcard__face hcard__face--back">
-                      <span class="hcard__back-name">Tennis</span>
-                      <p class="hcard__desc">打得不算好但很上头，周末约球是最快乐的事。</p>
-                    </div>
-                  </div>
-                </div>
-                <div class="hcard" data-share="film">
-                  <div class="hcard__inner">
-                    <div class="hcard__face hcard__face--front">
-                      <span class="hcard__emoji">🎬</span>
-                    </div>
-                    <div class="hcard__face hcard__face--back">
-                      <span class="hcard__back-name">Film &amp; TV</span>
-                      <p class="hcard__desc">爆米花文艺科幻都爱看，电视剧音乐剧也爱看，好片子的安利来者不拒。</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </section>
+            <!-- 兴趣爱好已独立成第三页 SEC.03 — INTERESTS（神经网络节点图） -->
 
           </div>
 
@@ -2015,7 +2218,7 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
           <div class="col">
 
             <section class="block reveal">
-              <h3 class="block__t"><i>04</i>经历时间线<em>Timeline</em></h3>
+              <h3 class="block__t"><i>03</i>经历时间线<em>Timeline</em></h3>
               <div class="tl">
                 <div class="tl__i on">
                   <div class="tl__y">2026 — NOW</div>
@@ -2036,7 +2239,7 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
             </section>
 
             <section class="block reveal">
-              <h3 class="block__t"><i>05</i>正在学习<em>Learning</em></h3>
+              <h3 class="block__t"><i>04</i>正在学习<em>Learning</em></h3>
               <div class="tags">
                 <span class="tag tag--core">Python</span>
                 <span class="tag tag--core">PyTorch</span>
@@ -2078,19 +2281,22 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
         <span class="ilabel__hint">点击进入</span>
       </div>
 
-      <div class="ilabel" data-k="race">
+      <div class="ilabel" data-k="race" role="button" tabindex="0" aria-label="打开竞速板块">
         <span class="ilabel__zh">竞速</span>
         <span class="ilabel__en">Racing</span>
+        <span class="ilabel__hint">点击进入</span>
       </div>
 
-      <div class="ilabel" data-k="tennis">
-        <span class="ilabel__zh">网球</span>
-        <span class="ilabel__en">Tennis</span>
+      <div class="ilabel" data-k="sport" role="button" tabindex="0" aria-label="打开运动板块">
+        <span class="ilabel__zh">运动</span>
+        <span class="ilabel__en">Sports</span>
+        <span class="ilabel__hint">点击进入</span>
       </div>
 
-      <div class="ilabel" data-k="film">
+      <div class="ilabel" data-k="film" role="button" tabindex="0" aria-label="打开影视板块">
         <span class="ilabel__zh">影视</span>
         <span class="ilabel__en">Film &amp; TV</span>
+        <span class="ilabel__hint">点击进入</span>
       </div>
 
       <div class="ilabel" data-k="edit" role="button" tabindex="0" aria-label="打开剪辑作品集">
@@ -2272,8 +2478,8 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 <!-- ══════════ 音乐板块（移动版竖式唱机）—— 从 INTERESTS 页「音乐」簇进入 ══════════
      竖版：页眉 → 唱机 → 曲名 → 控制条 → 进度 → 平台跳转 → 小字。
      · 点转盘（放唱片的那块空白处）→ 底部抽屉式唱片箱滑上来；
-     · 点一张唱片 → 抽屉自动收起、唱片落盘并开播；
-     · 控制条右侧「三条横线」→ 文字版歌单，点一行直接切歌。 -->
+     · 点一张唱片 → 抽屉自动收起、唱片落盘并开播。
+     （文字版歌单已于 2026-09-21 按用户要求删除，入口与面板都已移除） -->
 <div class="mdeck" id="mdeck" data-tt-state="idle" role="dialog" aria-modal="true" aria-label="音乐 · 黑胶唱机">
 
   <header class="mdeck__head">
@@ -2326,7 +2532,7 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 
   <div class="mdeck__sub">
     <p class="mdeck__subt">
-      这里是从我歌单精选的5%<br>
+      这是我的歌单精选<br>
       如果可以的话 也想听听你的宝藏歌曲
     </p>
     <button class="mdeck__share" type="button" id="mdeckShare">分享你的宝藏歌曲</button>
@@ -2339,16 +2545,6 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
     <div class="mcrate__hd">Record crate / 唱片箱</div>
     <div class="mcrate__tabs" id="mcrateTabs"></div>
     <div class="mcrate__grid" id="mcrateGrid"></div>
-  </div>
-
-  <!-- 文字版歌单 -->
-  <div class="mlist" id="mlist" aria-hidden="true">
-    <div class="mlist__hd">
-      <span class="mlist__ttl">Playlist // 歌单</span>
-      <button class="mlist__close" type="button" id="mlistClose" aria-label="关闭歌单">✕</button>
-    </div>
-    <div class="mlist__tabs" id="mlistTabs"></div>
-    <ol class="mlist__ol" id="mlistOl"></ol>
   </div>
 
 </div>
@@ -2392,6 +2588,83 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
       </div>
     </section>
   </div>
+
+</div>
+
+<!-- ══════════ 03.3 RACING（移动版竞速）══════════
+     和桌面版共用 assets/racing/ 那 13 张图，交互按手指重做：
+       ① 触屏没有 hover，词改成常驻显示在卡片左下角，点卡片 = 组内切图；
+       ② MotoGP 后两张两列平铺、文案常驻，不再靠 hover 横向展开；
+       ③ BEAUTY → BEAST 的故障动画改成「卡片滚进视野后 1.5s」触发；
+       ④ 只有第一次打开才注入图片，避免和 3D 机器人争开局的内存。 -->
+<div class="mrace" id="race" role="dialog" aria-modal="true" aria-label="竞速 · Racing">
+
+  <header class="mrace__head">
+    <button class="mrace__close" type="button" id="raceClose" aria-label="关闭竞速面板">✕</button>
+    <div class="phead__idx">03.3 / Racing</div>
+    <h2 class="phead__title chrome">RACING</h2>
+    <p class="phead__zh">竞速</p>
+    <p class="mrace__subt">FOUR WHEELS &amp; TWO WHEELS — F1 · MOTOGP</p>
+  </header>
+
+  <div class="mrace__stage" id="raceStage">
+
+    <section class="mrace__block">
+      <div class="mrace__kicker">
+        <span class="t">FORMULA 1</span>
+        <span class="tyres" aria-hidden="true">
+          <svg class="tyre"><use href="#i-tyre"/></svg><svg class="tyre"><use href="#i-tyre"/></svg><svg class="tyre"><use href="#i-tyre"/></svg><svg class="tyre"><use href="#i-tyre"/></svg>
+        </span>
+      </div>
+      <div class="mrstack" id="raceF1"></div>
+    </section>
+
+    <section class="mrace__block">
+      <div class="mrace__kicker">
+        <span class="t">MotoGP</span>
+        <span class="tyres" aria-hidden="true">
+          <svg class="tyre"><use href="#i-tyre"/></svg><svg class="tyre"><use href="#i-tyre"/></svg>
+        </span>
+      </div>
+      <div class="mrstack" id="raceMoto"></div>
+    </section>
+
+  </div>
+
+  <!-- 轮胎图标：外圈 + 轮毂 + 四道胎纹，纯线条，贴合全站极简风 -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <symbol id="i-tyre" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2.6"/>
+      <circle cx="12" cy="12" r="3.4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <g stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+        <line x1="12" y1="5.4" x2="12" y2="7.2"/>
+        <line x1="12" y1="16.8" x2="12" y2="18.6"/>
+        <line x1="5.4" y1="12" x2="7.2" y2="12"/>
+        <line x1="16.8" y1="12" x2="18.6" y2="12"/>
+      </g>
+    </symbol>
+  </svg>
+
+</div>
+
+<!-- ══════════ 03.3 SPORTS（移动版运动板块）══════════
+     三张生活运动照片按「文件夹」的方式收纳：静止叠成一摞只露边角，
+     点一下整组向上抽出并扇形散开（触摸设备没有 hover，用点击代替）。
+     顶部小字 🏎️ · 🎾 · 🚴。 -->
+<div class="msport" id="sport" role="dialog" aria-modal="true" aria-label="运动 · Sports">
+
+  <header class="msport__head">
+    <button class="msport__close" type="button" id="sportClose" aria-label="关闭运动面板">✕</button>
+    <div class="phead__idx">03.3 / Sports</div>
+    <h2 class="phead__title chrome">SPORTS</h2>
+    <p class="phead__zh">运动</p>
+    <p class="msport__subt">🏎️ · 🎾 · 🚴</p>
+  </header>
+
+  <div class="msport__fan" id="sportFan" aria-label="运动照片组，点击展开">
+    <!-- 图片由 JS 第一次打开时注入 -->
+  </div>
+  <p class="msport__hint" id="sportHint">TAP · 点一下照片展开</p>
 
 </div>
 
@@ -4378,7 +4651,7 @@ function makeEnvMap(renderer){
        左/右 —— 标签是居中对齐的，簇心别超过 0.24~0.78，否则标签会顶出安全边。
      颜色只在这里定义一份：hex 给 CSS 标签的光晕用，rgb 给 canvas 画半透明用。 */
   var SPOTS = [
-    { k:'tennis', rx:0.620, ry:0.270, hex:'#3fb98d', rgb:'63,185,141'  },  // 青绿 · 上
+    { k:'sport',  rx:0.620, ry:0.270, hex:'#3fb98d', rgb:'63,185,141'  },  // 青绿 · 上
     { k:'music',  rx:0.240, ry:0.405, hex:'#5f96dd', rgb:'95,150,221'  },  // 蓝 · 左
     { k:'edit',   rx:0.760, ry:0.515, hex:'#9a80d6', rgb:'154,128,214' },  // 紫 · 右
     { k:'race',   rx:0.270, ry:0.640, hex:'#dc7f9f', rgb:'220,127,159' },  // 粉 · 左下
@@ -4738,6 +5011,8 @@ function makeEnvMap(renderer){
     hub.hot = 1;
     if (hub.k === 'music' && window.__zyMusicOpen) window.__zyMusicOpen();
     if (hub.k === 'edit'  && window.__zyClipsOpen) window.__zyClipsOpen();
+    if (hub.k === 'race'  && window.__zyRaceOpen)  window.__zyRaceOpen();
+    if (hub.k === 'sport' && window.__zySportOpen) window.__zySportOpen();
   });
 
   /* 「音乐」这枚标签本身也是入口：点它直接进音乐面板 */
@@ -4781,8 +5056,8 @@ function makeEnvMap(renderer){
    与桌面版共用同一套音源与播放逻辑（整首 > 30 秒片段 > 平台跳转），
    只是交互按手机重做：
      · 点转盘（放唱片的那块空白处）→ 底部抽屉式唱片箱滑上来；
-     · 点一张唱片 → 抽屉自动收起、唱片落盘并立刻开播；
-     · 控制条右侧「三条横线」→ 文字版歌单，点一行直接切歌。
+     · 点一张唱片 → 抽屉自动收起、唱片落盘并立刻开播。
+   （文字版歌单已于 2026-09-21 按用户要求删除）
    桌面版的「拖拽」在手机上没有意义，所以整段删掉，改成点按。
 
    音源四级降级：src（整首，本地文件）> pv（30 秒片段，本地文件）> ext（官方平台跳转）> 无。
@@ -4887,10 +5162,6 @@ function makeEnvMap(renderer){
   var maskEl  = document.getElementById('mcrateMask');
   var cTabsEl = document.getElementById('mcrateTabs');
   var gridEl  = document.getElementById('mcrateGrid');
-  var listEl  = document.getElementById('mlist');
-  var lTabsEl = document.getElementById('mlistTabs');
-  var olEl    = document.getElementById('mlistOl');
-  var lClose  = document.getElementById('mlistClose');
 
   var DUR   = 30;          // 30 秒片段 / 无音源时的兜底时长（秒）
   var cur   = null;        // 当前唱片
@@ -5048,20 +5319,17 @@ function makeEnvMap(renderer){
       (tip ? '<br><span class="mdeck__tip">' + tip + '</span>' : '');
   }
 
-  /* ---------- 唱片箱 / 歌单：分类标签 ---------- */
+  /* ---------- 唱片箱：分类标签 ---------- */
   function renderTabs(){
-    var hosts = [cTabsEl, lTabsEl], i, k, b;
-    for (k = 0; k < hosts.length; k++){
-      if (!hosts[k]) continue;
-      hosts[k].innerHTML = '';
-      for (i = 0; i < CATS.length; i++){
-        b = document.createElement('button');
-        b.type = 'button';
-        b.className = (hosts[k] === cTabsEl ? 'mcrate__tab' : 'mlist__tab') + (i === catI ? ' is-on' : '');
-        b.textContent = CATS[i].name;
-        b.setAttribute('data-cat', i);
-        hosts[k].appendChild(b);
-      }
+    var i, b;
+    cTabsEl.innerHTML = '';
+    for (i = 0; i < CATS.length; i++){
+      b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'mcrate__tab' + (i === catI ? ' is-on' : '');
+      b.textContent = CATS[i].name;
+      b.setAttribute('data-cat', i);
+      cTabsEl.appendChild(b);
     }
     applyTint();
   }
@@ -5094,34 +5362,13 @@ function makeEnvMap(renderer){
     }
     markPlaying();
   }
-  function renderList(){
-    var list = CATS[catI].list, i, it, li, b;
-    olEl.innerHTML = '';
-    for (i = 0; i < list.length; i++){
-      it = list[i];
-      li = document.createElement('li');
-      b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'mlist__row' + ((i === curI && catI === curCat) ? ' is-on' : '');
-      b.setAttribute('data-i', i);
-      b.innerHTML = '<span class="mlist__n">' + (i + 1 < 10 ? '0' : '') + (i + 1) + '</span>' +
-                    '<span class="mlist__t">' + esc(it.t) + '</span>' +
-                    '<span class="mlist__a">' + esc(it.a) + '</span>';
-      li.appendChild(b);
-      olEl.appendChild(li);
-    }
-  }
   function markPlaying(){
     var i, mine;
     var sv = gridEl ? gridEl.querySelectorAll('.msleeve') : [];
-    var rw = olEl ? olEl.querySelectorAll('.mlist__row') : [];
     for (i = 0; i < sv.length; i++){
       mine = (i === curI && catI === curCat);
       sv[i].classList.toggle('is-on', mine);
       sv[i].classList.toggle('is-playing', mine && state === 'playing');
-    }
-    for (i = 0; i < rw.length; i++){
-      rw[i].classList.toggle('is-on', (i === curI && catI === curCat));
     }
   }
 
@@ -5328,7 +5575,6 @@ function makeEnvMap(renderer){
     badge();
     markPlaying();
     if (crateBuilt) renderCrate();
-    renderList();
     renderLinks(it);
     if (mode === 'none'){
       setState('mute');
@@ -5355,37 +5601,22 @@ function makeEnvMap(renderer){
     setNow(null);
     markPlaying();
     renderCrate();
-    renderList();
   }
 
-  /* ---------- 唱片箱抽屉 / 文字歌单 ---------- */
+  /* ---------- 唱片箱抽屉 ---------- */
   function crateOpen(){ return crateEl.classList.contains('is-open'); }
   function openCrate(){
     if (!crateBuilt) renderCrate();
     crateEl.classList.add('is-open');
     crateEl.setAttribute('aria-hidden', 'false');
     maskEl.classList.add('is-on');
-    /* 抽屉开在小分类上：当前分类那一张滚到可见处 */
-    var on = gridEl.querySelector('.msleeve.is-on');
-    if (on && on.scrollIntoView) on.scrollIntoView({ block: 'center' });
+    /* 不再把当前唱片 scrollIntoView —— 那会连带滚动整个页面，表现为「点转盘时页面猛地向上滑一下」 */
   }
   function closeCrate(){
     crateEl.classList.remove('is-open');
     crateEl.setAttribute('aria-hidden', 'true');
     maskEl.classList.remove('is-on');
   }
-  function openList(){
-    renderList();
-    listEl.classList.add('is-open');
-    listEl.setAttribute('aria-hidden', 'false');
-    var on = olEl.querySelector('.mlist__row.is-on');
-    if (on && on.scrollIntoView) on.scrollIntoView({ block: 'center' });
-  }
-  function closeList(){
-    listEl.classList.remove('is-open');
-    listEl.setAttribute('aria-hidden', 'true');
-  }
-
   /* ---------- 开 / 关面板 ---------- */
   function isOpen(){ return deck.classList.contains('is-open'); }
   function open(){
@@ -5397,7 +5628,6 @@ function makeEnvMap(renderer){
   function close(){
     if (!isOpen()) return;
     closeCrate();
-    closeList();
     deck.classList.remove('is-open');
     pause();
   }
@@ -5435,8 +5665,6 @@ function makeEnvMap(renderer){
       openCrate();
     }
   });
-  /* 三条横线歌单入口按用户要求已删（2026-09-21）；面板与 renderList 保留但没有触发点了 */
-  if (lClose) lClose.addEventListener('click', closeList);
 
   maskEl.addEventListener('click', closeCrate);
   /* 点唱片 → 抽屉自动收起 + 落盘开播 */
@@ -5447,26 +5675,17 @@ function makeEnvMap(renderer){
     closeCrate();
     load(CATS[catI].list[i], i);
   });
-  /* 点歌单里的一行 → 直接切歌（歌单留在屏幕上，方便连着换） */
-  olEl.addEventListener('click', function(e){
-    var b = e.target.closest && e.target.closest('.mlist__row');
-    if (!b) return;
-    var i = +b.getAttribute('data-i');
-    load(CATS[catI].list[i], i);
-  });
-  /* 两个分类标签栏共用一份 catI */
+  /* 切分类 → 重画标签与唱片箱 */
   function onTab(e){
-    var b = e.target.closest && (e.target.closest('.mcrate__tab') || e.target.closest('.mlist__tab'));
+    var b = e.target.closest && e.target.closest('.mcrate__tab');
     if (!b) return;
     var i = +b.getAttribute('data-cat');
     if (i === catI) return;
     catI = i;
     renderTabs();
     renderCrate();
-    renderList();
   }
   cTabsEl.addEventListener('click', onTab);
-  lTabsEl.addEventListener('click', onTab);
 
   if (closeBt) closeBt.addEventListener('click', close);
   /* 面板铺满整屏，滚轮/键盘不该再翻页 */
@@ -5493,8 +5712,7 @@ function makeEnvMap(renderer){
 
   /* ---------- 初始化 ---------- */
   renderTabs();
-  renderList();          /* 文字歌单只有纯文本，建了不亏；唱片箱等第一次打开再建 */
-  setState('idle');
+  setState('idle');          /* 唱片箱等第一次打开再建 */
   paint();
 
   /* 给神经网那边的入口用：点「音乐」簇 / 标签 → 打开面板 */
@@ -5504,7 +5722,7 @@ function makeEnvMap(renderer){
   /* 留给自动化测试与手工调试 */
   window.__zyMDeck = {
     open: open, close: close,
-    crate: openCrate, list: openList,
+    crate: openCrate,
     load: function(i){ load(CATS[catI].list[i], i); },
     info: function(){ return { mode: mode, state: state, prog: prog, cat: catI, cur: cur ? cur.t : null }; },
     el: function(){ return audio; },
@@ -5922,6 +6140,395 @@ function makeEnvMap(renderer){
                x: x, v: Math.round(v), groupW: groupW, visible: visible, paused: paused };
     }
   };
+})();
+</script>
+
+<script>
+/* ══════════ 运动板块（#sport）移动版 ══════════ */
+(function(){
+  var panel = document.getElementById('sport');
+  if (!panel) return;
+  var fan = document.getElementById('sportFan');
+  var closeBt = document.getElementById('sportClose');
+  var built = false;
+
+  var IMG = 'assets/sports/';
+  var CARDS = [
+    { src: IMG + 'kart-1.jpg',         alt: '卡丁车' },
+    { src: IMG + 'tennis-1.jpg',       alt: '网球' },
+    { src: IMG + 'cycling-shadow-1.jpg', alt: '骑行剪影' }
+  ];
+
+  function build(){
+    if (built || !fan) return;
+    built = true;
+    fan.classList.remove('is-dealt');
+    CARDS.forEach(function(c, i){
+      var card = document.createElement('figure');
+      card.className = 'msport__card';
+      var img = document.createElement('img');
+      img.src = c.src;
+      img.alt = c.alt;
+      img.loading = i === 0 ? 'eager' : 'lazy';
+      card.appendChild(img);
+      fan.appendChild(card);
+
+      /* 单张：点一下提到最前；已经展开时不再重复展开 */
+      card.addEventListener('click', function(e){
+        Array.prototype.forEach.call(fan.children, function(n){
+          n.classList.remove('is-front');
+        });
+        card.classList.add('is-front');
+        if (fan.classList.contains('is-spread')) e.stopPropagation();
+      });
+    });
+    CARDS.forEach(function(c){ (new Image()).src = c.src; });
+
+    /* 整组：没有 hover，用一次点击代替「展开 / 收起」。
+       展开时清掉 is-front，让三张回到默认层叠顺序，别一直压着最前那张 */
+    fan.addEventListener('click', function(){
+      var spreading = !fan.classList.contains('is-spread');
+      fan.classList.toggle('is-spread');
+      if (spreading){
+        Array.prototype.forEach.call(fan.children, function(n){
+          n.classList.remove('is-front');
+        });
+      }
+    });
+  }
+  function deal(){
+    if (!fan) return;
+    fan.classList.remove('is-dealt');
+    void fan.offsetWidth;
+    window.setTimeout(function(){ fan.classList.add('is-dealt'); }, 80);
+  }
+
+  function isOpen(){ return panel.classList.contains('is-open'); }
+  function open(){
+    if (isOpen()) return;
+    build();
+    panel.classList.add('is-open');
+    if (fan) fan.classList.remove('is-spread');
+    deal();
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+  }
+  function close(){
+    if (!isOpen()) return;
+    panel.classList.remove('is-open');
+    if (fan){
+      fan.classList.remove('is-dealt');
+      fan.classList.remove('is-spread');
+    }
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+  }
+
+  panel.addEventListener('touchmove', function(e){ e.stopPropagation(); }, { passive: true });
+  panel.addEventListener('wheel', function(e){ e.stopPropagation(); }, { passive: true });
+  window.addEventListener('keydown', function(e){
+    if (!isOpen()) return;
+    if (e.key === 'Escape' || e.key === 'Esc') close();
+  }, true);
+  if (closeBt) closeBt.addEventListener('click', close);
+
+  var label = document.querySelector('.ilabel[data-k="sport"]');
+  if (label){
+    label.addEventListener('click', function(e){ e.stopPropagation(); open(); });
+    label.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+        e.preventDefault(); e.stopPropagation(); open();
+      }
+    });
+  }
+
+  /* 画面上「运动」那一簇也接进兴趣页的统一命中分发（见神经网络脚本 hitTest 那段） */
+  window.__zySportOpen  = open;
+  window.__zySportClose = close;
+  window.__zySport = { open: open, close: close };
+})();
+</script>
+
+<!-- ══════════ 影视板块：影视档 film.html（覆盖式面板，从「影视」标签进入） ══════════
+     与桌面版同一套做法：整页用 iframe 嵌进来，第一次点开才写 src（省首屏流量）。 -->
+<div class="film" id="film" role="dialog" aria-modal="true" aria-label="影视 · 影视档">
+  <iframe class="film__frame" id="filmFrame" src="about:blank" data-src="film.html"
+          title="影视档 · Film Archive" loading="lazy"></iframe>
+  <button class="film__close" type="button" id="filmClose" aria-label="关闭影视面板">✕</button>
+</div>
+
+<script>
+/* ══════════ 影视板块：iframe 面板的开关（移动版） ══════════ */
+(function(){
+  var panel   = document.getElementById('film'),
+      frame   = document.getElementById('filmFrame'),
+      closeBt = document.getElementById('filmClose');
+  if (!panel || !frame) return;
+
+  var src  = frame.getAttribute('data-src') || 'film.html',
+      lazy = true;
+
+  function isOpen(){ return panel.classList.contains('is-open'); }
+  function open(){
+    if (isOpen()) return;
+    if (lazy){ frame.src = src; lazy = false; }
+    panel.classList.add('is-open');
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    if (closeBt && closeBt.focus) closeBt.focus();
+  }
+  function close(){
+    if (!isOpen()) return;
+    panel.classList.remove('is-open');
+    document.documentElement.style.overflow = '';
+    document.body.style.overflow = '';
+    if (panel.contains(document.activeElement) && document.activeElement.blur){
+      document.activeElement.blur();
+    }
+  }
+
+  /* 面板里的滚动不要冒泡去翻页 */
+  panel.addEventListener('touchmove', function(e){ e.stopPropagation(); }, { passive: true });
+  panel.addEventListener('wheel', function(e){ e.stopPropagation(); }, { passive: true });
+  window.addEventListener('keydown', function(e){
+    if (!isOpen()) return;
+    if (e.key === 'Escape' || e.key === 'Esc') close();
+  }, true);
+  if (closeBt) closeBt.addEventListener('click', close);
+
+  /* 影视档里点「← 返回」/ 按 Esc 时，iframe 会发这条消息上来 */
+  window.addEventListener('message', function(e){
+    if (e && e.data && e.data.type === 'film-close') close();
+  });
+
+  /* ---------- 入口：文字标签 + 画面上「影视」那一簇 ---------- */
+  var label = document.querySelector('.ilabel[data-k="film"]');
+  if (label){
+    label.addEventListener('click', function(e){ e.stopPropagation(); open(); });
+    label.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+        e.preventDefault(); e.stopPropagation(); open();
+      }
+    });
+  }
+  var pageSec = document.querySelector('.page--interests');
+  if (pageSec){
+    pageSec.addEventListener('click', function(e){
+      if (!pageSec.classList.contains('is-active')) return;
+      var hub = window.__zyInterestHub && window.__zyInterestHub('film');
+      if (!hub) return;
+      var r = pageSec.getBoundingClientRect();
+      var dx = (e.clientX - r.left) - hub.x;
+      var dy = (e.clientY - r.top) - hub.y;
+      if (dx * dx + dy * dy <= Math.pow(hub.r * 1.25, 2)) open();
+    });
+  }
+
+  window.__zyFilm = { open: open, close: close };
+})();
+</script>
+
+<script>
+/* ══════════ 竞速板块（移动版 #race） ══════════
+   和桌面版共用 assets/racing/ 的图与分组（F1 封面 + PROUD / CHAMPION / BEAUTY，
+   MotoGP 首图 + 两张马奎斯），但触屏没有 hover，交互按手指重做：
+     ① 词常驻显示在卡片左下角，不再需要悬停去"揭示"；
+     ② 点卡片 = 组内切图（淡出换 src 再淡入），右下角带 1/N 计数；
+     ③ MotoGP 后两张两列平铺，文案常驻；
+     ④ BEAUTY → BEAST 的故障动画：卡片滚进视野后 1.5s 触发，滚出去复位；
+     ⑤ 第一次打开才注入卡片并预载图片。 */
+(function(){
+  var panel = document.getElementById('race');
+  if (!panel) return;
+  var closeBt = document.getElementById('raceClose');
+  var f1Box   = document.getElementById('raceF1');
+  var motoBox = document.getElementById('raceMoto');
+  var built = false;
+
+  var IMG = 'assets/racing/';
+  /* 单列竖排：封面(竖) → PROUD(横) → CHAMPION(横) → BEAUTY(竖)，与桌面版 DOM 顺序一致 */
+  var F1 = [
+    { shape:'tall', kind:'cover', word:'RACE WEEK', kick:'SPEED', sub:'Formula 1', imgs:[IMG + 'f1-cover.jpg'] },
+    { shape:'wide', kind:'cycle', word:'PROUD', imgs:[IMG + 'proud-1.jpg', IMG + 'proud-2.jpg'] },
+    { shape:'wide', kind:'cycle', word:'CHAMPION', imgs:[IMG + 'champion-1.jpg', IMG + 'champion-2.jpg', IMG + 'champion-3.jpg', IMG + 'champion-4.jpg', IMG + 'champion-5.jpg', IMG + 'champion-6.jpg', IMG + 'champion-7.jpg'] },
+    { shape:'tall', kind:'cycle', word:'BEAUTY', morph:'BEAST', imgs:[IMG + 'beauty-1.jpg', IMG + 'beauty-2.jpg', IMG + 'beauty-3.jpg', IMG + 'beauty-4.jpg', IMG + 'beauty-5.jpg', IMG + 'beauty-6.jpg', IMG + 'beauty-7.jpg', IMG + 'beauty-8.jpg'] }
+  ];
+  var MOTO_LEAD = { shape:'wide', word:'NEVER GIVE UP', imgs:[IMG + 'motogp-1.jpg'] };
+  var MOTO_GAL = [
+    { kick:'MÁRQUEZ', word:'No.93', img:IMG + 'motogp-2.jpg' },
+    { kick:'2025 · 9th world champion', word:'The Greatest Comeback', img:IMG + 'motogp-3.jpg' }
+  ];
+
+  function el(tag, cls, html){
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (html != null) n.innerHTML = html;
+    return n;
+  }
+
+  /* 封面格：静态图 + 两行小字（SPEED / Formula 1），不参与切图 */
+  function buildCover(item){
+    var f = el('figure', 'mracard mracard--cover mracard--' + item.shape);
+    var img = el('img'); img.src = item.imgs[0]; img.alt = item.word;
+    f.appendChild(img);
+    f.appendChild(el('div', 'mracard__shade'));
+    f.appendChild(el('figcaption', 'cap',
+      '<span class="k">' + item.kick + '</span><span class="k k2">' + (item.sub || item.word) + '</span>'));
+    return f;
+  }
+
+  /* 切图格：词常驻 + 点击轮换组内图片 */
+  function buildCycle(item, clickable){
+    var f = el('figure', 'mracard mracard--' + item.shape);
+    f.setAttribute('aria-label', item.word);
+    var img = el('img'); img.src = item.imgs[0]; img.alt = item.word;
+    f.appendChild(img);
+    f.appendChild(el('div', 'mracard__shade'));
+    f.appendChild(el('figcaption', 'mracard__word',
+      '<b data-txt="' + item.word + '">' + item.word + '</b>'));
+
+    var idx = 0, busy = false;
+    if (clickable && item.imgs.length > 1){
+      f.classList.add('mracard--tap');
+      f.setAttribute('role', 'button');
+      f.setAttribute('tabindex', '0');
+      f.appendChild(el('span', 'mracard__hint', 'TAP · NEXT'));
+      f.appendChild(el('span', 'mracard__num', '1 / ' + item.imgs.length));
+      var num = f.querySelector('.mracard__num');
+      f.addEventListener('click', function(){
+        if (busy) return;
+        busy = true;
+        idx = (idx + 1) % item.imgs.length;
+        img.classList.add('is-fade');
+        setTimeout(function(){
+          img.src = item.imgs[idx];
+          var done = function(){ img.classList.remove('is-fade'); busy = false; };
+          if (img.complete) done();
+          else { img.onload = done; img.onerror = done; }
+        }, 240);
+        if (num) num.textContent = (idx + 1) + ' / ' + item.imgs.length;
+      });
+      f.addEventListener('keydown', function(e){
+        if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+          e.preventDefault(); e.stopPropagation(); f.click();
+        }
+      });
+    }
+
+    /* 变形：卡片滚进视野后 1.5s 起一次故障动画，过半换字（BEAUTY → BEAST）；
+       滚出视野复位成 BEAUTY —— 对应桌面版「移出鼠标复位」 */
+    if (item.morph && window.IntersectionObserver){
+      var wb = f.querySelector('.mracard__word b');
+      var tDelay = 0, tSwap = 0, tEnd = 0;
+      function clear(){ window.clearTimeout(tDelay); window.clearTimeout(tSwap); window.clearTimeout(tEnd); }
+      function reset(){
+        clear();
+        wb.classList.remove('is-glitch');
+        wb.textContent = item.word;
+        wb.setAttribute('data-txt', item.word);
+      }
+      var io = new IntersectionObserver(function(entries){
+        for (var i = 0; i < entries.length; i++){
+          if (entries[i].isIntersecting){
+            clear();
+            tDelay = window.setTimeout(function(){
+              wb.classList.add('is-glitch');
+              tSwap = window.setTimeout(function(){
+                wb.textContent = item.morph;
+                wb.setAttribute('data-txt', item.morph);
+              }, 300);
+              tEnd = window.setTimeout(function(){ wb.classList.remove('is-glitch'); }, 700);
+            }, 1500);
+          } else {
+            reset();
+          }
+        }
+      }, { threshold: 0.45 });
+      io.observe(f);
+    }
+    return f;
+  }
+
+  /* MotoGP 后两张：两列平铺，文案常驻（触屏没有 hover，不做展开） */
+  function buildGalItem(g){
+    var f = el('figure', 'mracard mracard--gal');
+    var img = el('img'); img.src = g.img; img.alt = g.word;
+    f.appendChild(img);
+    f.appendChild(el('div', 'mracard__shade'));
+    f.appendChild(el('figcaption', 'mracard__word',
+      '<span class="k">' + g.kick + '</span><b>' + g.word + '</b>'));
+    return f;
+  }
+
+  function build(){
+    if (built) return;
+    built = true;
+    F1.forEach(function(item){
+      f1Box.appendChild(item.kind === 'cover' ? buildCover(item) : buildCycle(item, true));
+    });
+    motoBox.appendChild(buildCycle(MOTO_LEAD, false));
+    var gal = el('div', 'mrgal');
+    MOTO_GAL.forEach(function(g){ gal.appendChild(buildGalItem(g)); });
+    motoBox.appendChild(gal);
+    /* 全部预载：切图时不再等网络 */
+    F1.concat([MOTO_LEAD]).forEach(function(item){
+      item.imgs.forEach(function(src){ (new Image()).src = src; });
+    });
+    MOTO_GAL.forEach(function(g){ (new Image()).src = g.img; });
+  }
+
+  function isOpen(){ return panel.classList.contains('is-open'); }
+  function open(){
+    if (isOpen()) return;
+    build();
+    panel.classList.add('is-open');
+    var st = document.getElementById('raceStage');
+    if (st) st.scrollTop = 0;
+  }
+  function close(){
+    if (!isOpen()) return;
+    panel.classList.remove('is-open');
+    if (panel.contains(document.activeElement) && document.activeElement.blur){
+      document.activeElement.blur();
+    }
+  }
+
+  /* 面板铺满整屏，里面的滚动 / 触摸不该再翻整站的页 */
+  panel.addEventListener('touchmove', function(e){ e.stopPropagation(); }, { passive: true });
+  panel.addEventListener('wheel', function(e){ e.stopPropagation(); }, { passive: true });
+  window.addEventListener('keydown', function(e){
+    if (!isOpen()) return;
+    if (e.key === 'Escape' || e.key === 'Esc') close();
+  }, true);
+  if (closeBt) closeBt.addEventListener('click', close);
+
+  /* ---------- 入口：文字标签 + 画面上「竞速」那一簇 ---------- */
+  var label = document.querySelector('.ilabel[data-k="race"]');
+  if (label){
+    label.addEventListener('click', function(e){ e.stopPropagation(); open(); });
+    label.addEventListener('keydown', function(e){
+      if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar'){
+        e.preventDefault(); e.stopPropagation(); open();
+      }
+    });
+  }
+  var pageSec = document.querySelector('.page--interests');
+  if (pageSec){
+    pageSec.addEventListener('click', function(e){
+      if (!pageSec.classList.contains('is-active')) return;
+      var hub = window.__zyInterestHub && window.__zyInterestHub('race');
+      if (!hub) return;
+      var r = pageSec.getBoundingClientRect();
+      var dx = (e.clientX - r.left) - hub.x;
+      var dy = (e.clientY - r.top) - hub.y;
+      if (dx * dx + dy * dy <= Math.pow(hub.r * 1.35, 2)) open();
+    });
+  }
+
+  /* 给神经网那边的入口用：点「竞速」簇 / 标签 → 打开面板 */
+  window.__zyRaceOpen  = open;
+  window.__zyRaceClose = close;
+  window.__zyRace = { open: open, close: close, state: function(){ return { built: built }; } };
 })();
 </script>
 
