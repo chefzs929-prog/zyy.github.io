@@ -1669,15 +1669,16 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 }
 .msport__card{
   /* 触摸设备没有 hover：静止叠成一摞，点一下整组才展开（.is-spread） */
-  --tx:0px;--ty:0px;--rot:0deg;
+  --tx:0px;--ty:0px;--rot:0deg;--lift:0px;
   position:absolute;width:min(168px,38vw);aspect-ratio:3/4;
   border-radius:8px;overflow:hidden;background:var(--bg-2);
   border:1px solid var(--line-2);box-shadow:0 14px 34px rgba(0,0,0,.5);
   transform-origin:center center;
-  transform:translate(var(--tx),var(--ty)) rotate(var(--rot));
-  transition:transform .55s var(--ease), box-shadow .4s var(--ease), opacity .45s var(--ease), z-index 0s;
+  transform:translate(var(--tx),calc(var(--ty) - var(--lift))) rotate(var(--rot));
+  transition:transform .55s var(--ease), box-shadow .4s var(--ease), opacity .45s var(--ease), z-index 0s,
+             border-color .4s var(--ease), filter .4s var(--ease);
 }
-.msport__card img{width:100%;height:100%;object-fit:cover;display:block}
+.msport__card img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s var(--ease)}
 
 /* 静止：微微错开的一小摞，小屏上省地方 */
 .msport__card:nth-child(1){ --tx:-8px; --ty:9px;  --rot:-2.5deg; z-index:1; }
@@ -1699,8 +1700,17 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 .msport__fan.is-dealt .msport__card:nth-child(2){ transition-delay:70ms; }
 .msport__fan.is-dealt .msport__card:nth-child(3){ transition-delay:140ms; }
 
-/* 单张：点一下提到第一图层，不放大 */
-.msport__card.is-front{z-index:10;box-shadow:0 26px 58px rgba(0,0,0,.62)}
+/* 展开后没被选中的那两张往后退半档（压暗），把主角让出来 */
+.msport__fan.is-spread .msport__card{filter:brightness(.8) saturate(.92)}
+
+/* 单张：点一下提到第一图层 —— 抬起一点、阴影加深、描边提亮、画面微微推近，
+   跟桌面版 hover 置顶保持一致，让「排到第一」看得见 */
+.msport__card.is-front{
+  z-index:10;--lift:12px;filter:none;
+  border-color:rgba(230,236,238,.34);
+  box-shadow:0 26px 58px rgba(0,0,0,.62);
+}
+.msport__card.is-front img{transform:scale(1.045)}
 
 /* 底部一行操作提示，展开后就淡掉 */
 .msport__hint{
@@ -1861,7 +1871,7 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 }
 
 /* ══════════════════════════════════════════════════════════
-   03.3 RACING（移动版竞速板块）
+   03.3 RACING（移动版赛车板块）
    与桌面版共用 assets/racing/ 那 13 张图，但触屏没有 hover，
    桌面版那套「方向感知悬停出词 / hover 横向展开」在手机上不成立，按手指重做：
      ① 词常驻显示在卡片左下角（不用悬停去揭示它），点卡片 = 组内切图；
@@ -2289,8 +2299,8 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
         <span class="ilabel__hint">点击进入</span>
       </div>
 
-      <div class="ilabel" data-k="race" role="button" tabindex="0" aria-label="打开竞速板块">
-        <span class="ilabel__zh">竞速</span>
+      <div class="ilabel" data-k="race" role="button" tabindex="0" aria-label="打开赛车板块">
+        <span class="ilabel__zh">赛车</span>
         <span class="ilabel__en">Racing</span>
         <span class="ilabel__hint">点击进入</span>
       </div>
@@ -2599,19 +2609,19 @@ h2.phead__title{font-size:clamp(30px,9vw,44px)}
 
 </div>
 
-<!-- ══════════ 03.3 RACING（移动版竞速）══════════
+<!-- ══════════ 03.3 RACING（移动版赛车）══════════
      和桌面版共用 assets/racing/ 那 13 张图，交互按手指重做：
        ① 触屏没有 hover，词改成常驻显示在卡片左下角，点卡片 = 组内切图；
        ② MotoGP 后两张两列平铺、文案常驻，不再靠 hover 横向展开；
        ③ BEAUTY → BEAST 的故障动画改成「卡片滚进视野后 1.5s」触发；
        ④ 只有第一次打开才注入图片，避免和 3D 机器人争开局的内存。 -->
-<div class="mrace" id="race" role="dialog" aria-modal="true" aria-label="竞速 · Racing">
+<div class="mrace" id="race" role="dialog" aria-modal="true" aria-label="赛车 · Racing">
 
   <header class="mrace__head">
-    <button class="mrace__close" type="button" id="raceClose" aria-label="关闭竞速面板">✕</button>
+    <button class="mrace__close" type="button" id="raceClose" aria-label="关闭赛车面板">✕</button>
     <div class="phead__idx">03.3 / Racing</div>
     <h2 class="phead__title chrome">RACING</h2>
-    <p class="phead__zh">竞速</p>
+    <p class="phead__zh">赛车</p>
     <p class="mrace__subt">FOUR WHEELS &amp; TWO WHEELS — F1 · MOTOGP</p>
   </header>
 
@@ -5473,9 +5483,19 @@ function makeEnvMap(renderer){
     var dt = (t - tPrev) / 1000;
     tPrev = t;
     if (dt > 0.25) dt = 0.25;
-    if (audio && audio.readyState >= 1 && isFinite(audio.duration) && audio.duration > 0){
-      if (cap && audio.currentTime >= cap){ stopRAF(); onEnd(); return; }
-      prog = clamp(audio.currentTime / audio.duration, 0, 1);
+    if (audio){
+      /* ⚠ 音频元数据还没到（readyState 0 / duration NaN）时绝不能退回自己累加：
+         那会拿 30 秒的兆底时长把唱片先转出去几十度，等元数据一到又按
+         currentTime（还是 0）弹回开头 —— 就是“放上去抽擦一下再重新播”。
+         现在这段空窗原地等，等真实进度可读再跟着走。 */
+      if (audio.readyState >= 1 && isFinite(audio.duration) && audio.duration > 0){
+        if (cap && audio.currentTime >= cap){ stopRAF(); onEnd(); return; }
+        prog = clamp(audio.currentTime / audio.duration, 0, 1);
+        paint();
+        raf = window.requestAnimationFrame(tick);
+        return;
+      }
+      prog = 0;                          /* 元数据未到：停在开头，不许空跑 */
       paint();
       raf = window.requestAnimationFrame(tick);
       return;
@@ -6337,7 +6357,7 @@ function makeEnvMap(renderer){
 </script>
 
 <script>
-/* ══════════ 竞速板块（移动版 #race） ══════════
+/* ══════════ 赛车板块（移动版 #race） ══════════
    和桌面版共用 assets/racing/ 的图与分组（F1 封面 + PROUD / CHAMPION / BEAUTY，
    MotoGP 首图 + 两张马奎斯），但触屏没有 hover，交互按手指重做：
      ① 词常驻显示在卡片左下角，不再需要悬停去"揭示"；
@@ -6510,7 +6530,7 @@ function makeEnvMap(renderer){
   }, true);
   if (closeBt) closeBt.addEventListener('click', close);
 
-  /* ---------- 入口：文字标签 + 画面上「竞速」那一簇 ---------- */
+  /* ---------- 入口：文字标签 + 画面上「赛车」那一簇 ---------- */
   var label = document.querySelector('.ilabel[data-k="race"]');
   if (label){
     label.addEventListener('click', function(e){ e.stopPropagation(); open(); });
@@ -6533,7 +6553,7 @@ function makeEnvMap(renderer){
     });
   }
 
-  /* 给神经网那边的入口用：点「竞速」簇 / 标签 → 打开面板 */
+  /* 给神经网那边的入口用：点「赛车」簇 / 标签 → 打开面板 */
   window.__zyRaceOpen  = open;
   window.__zyRaceClose = close;
   window.__zyRace = { open: open, close: close, state: function(){ return { built: built }; } };

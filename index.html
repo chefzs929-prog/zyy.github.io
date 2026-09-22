@@ -1943,11 +1943,11 @@ h2.phead__title{
 }
 
 /* ============================================================
-   竞速板块（覆盖式面板 #race）
+   赛车板块（覆盖式面板 #race）
    四轮 Formula 1：2×2 卡片 —— 封面格静态无效果，其余三格
    「方向感知悬停出词 + 点击组内切图」（图片 object-fit:cover 裁剪）。
    两轮 MotoGP：首图方向感知悬停，后两张可扩展画廊（hover 展开）。
-   从兴趣页「竞速」标签 / 簇进入，Esc 或右上角关闭。z-index 70，
+   从兴趣页「赛车」标签 / 簇进入，Esc 或右上角关闭。z-index 70，
    与音乐、剪辑面板同级；颗粒层 .fx(80) 仍盖在最上面。
    ============================================================ */
 .race{
@@ -2230,7 +2230,8 @@ h2.phead__title{
      静止时三张像文件夹里摞着的照片，只错开一点露出边角；
      鼠标进入这一组，整叠向上抽出并扇形散开（folderSize / hoverTranslateY /
      hoverSpread / hoverRotation 这几个参数就在下面几行）；
-     移到某一张上只是把它提到第一图层，不再额外放大、也不旋转回正。 */
+     移到某一张上就把它提到第一图层：抬起一点、阴影加深、描边提亮，
+     同时另外两张压暗退后半档 —— 让“排到第一”是看得见的。 */
 .sport__fan{
   position:relative;width:min(720px,82vw);
   height:clamp(320px,46vh,440px);
@@ -2239,16 +2240,17 @@ h2.phead__title{
   perspective:1200px;
 }
 .sport__card{
-  /* 静止（teaser）参数 */
-  --tx:0px;--ty:0px;--rot:0deg;
+  /* 静止（teaser）参数；--lift 是“排到第一”时额外抬起的距离 */
+  --tx:0px;--ty:0px;--rot:0deg;--lift:0px;
   position:absolute;width:min(226px,30vw);aspect-ratio:3/4;
   border-radius:7px;overflow:hidden;background:var(--bg-2);
   border:1px solid var(--line-2);
   box-shadow:0 14px 34px rgba(0,0,0,.5);
   transform-origin:center center;
-  transform:translate(var(--tx),var(--ty)) rotate(var(--rot));
+  transform:translate(var(--tx),calc(var(--ty) - var(--lift))) rotate(var(--rot));
   transition:transform .58s var(--ease), box-shadow .4s var(--ease),
-             opacity .45s var(--ease), z-index 0s;
+             opacity .45s var(--ease), z-index 0s,
+             border-color .4s var(--ease), filter .4s var(--ease);
   cursor:var(--cur-bot-on);
 }
 .sport__card img{
@@ -2276,8 +2278,20 @@ h2.phead__title{
 .sport__fan.is-dealt .sport__card:nth-child(2){ transition-delay:70ms; }
 .sport__fan.is-dealt .sport__card:nth-child(3){ transition-delay:140ms; }
 
-/* 单张：只把它提到第一图层，不再额外放大 */
-.sport__card:hover{z-index:10}
+/* 展开后，鼠标没压着的那两张往后退半档（压暗），把主角让出来 */
+.sport__fan:hover .sport__card{filter:brightness(.8) saturate(.92)}
+
+/* 单张：提到第一图层，并给它一点“抽出来”的分量 ——
+   抬起 + 阴影加深 + 描边提亮 + 画面微微推近，
+   同时把上面那条压暗取消（特异度要压过 .sport__fan:hover .sport__card）。
+   这样“排到第一”是看得见的，而不是只悄悄换个层级。 */
+.sport__fan:hover .sport__card:hover{
+  z-index:10;--lift:14px;
+  filter:none;
+  border-color:rgba(230,236,238,.34);
+  box-shadow:0 26px 58px rgba(0,0,0,.62);
+}
+.sport__fan:hover .sport__card:hover img{transform:scale(1.045)}
 
 /* 窄屏：撒开幅度与角度都收小，避免出界 */
 @media (max-width:820px){
@@ -2562,8 +2576,8 @@ h2.phead__title{
         <span class="ilabel__hint">点击进入</span>
       </div>
 
-      <div class="ilabel" data-k="race" role="button" tabindex="0" aria-label="打开竞速板块">
-        <span class="ilabel__zh">竞速</span>
+      <div class="ilabel" data-k="race" role="button" tabindex="0" aria-label="打开赛车板块">
+        <span class="ilabel__zh">赛车</span>
         <span class="ilabel__en">Racing</span>
         <span class="ilabel__hint">点击进入</span>
       </div>
@@ -2857,19 +2871,19 @@ h2.phead__title{
   <button class="clips__close" type="button" id="clipsClose">关闭 ✕</button>
 </div>
 
-<!-- ══════════ 竞速板块：四轮 F1 + 两轮 MotoGP（覆盖式面板，从「竞速」标签进入） ══════════
+<!-- ══════════ 赛车板块：四轮 F1 + 两轮 MotoGP（覆盖式面板，从「赛车」标签进入） ══════════
      13 张图分四轮 / 两轮两大块：
      F1 = 封面格（静态）+ COURAGE / PROUD / BEAUTY 三格（方向感知悬停出词，点击组内切图）；
      MotoGP = NEVER GIVE UP 悬停首图 + 两张可扩展画廊。
      卡片图片第一次打开时才注入 —— 和唱片箱 / 作品卡同一策略，
      藏在隐藏面板里的 <img> 照样会立刻发请求，早注入等于首页白下 13 张图。 -->
-<div class="race" id="race" tabindex="-1" role="dialog" aria-modal="true" aria-label="竞速 · Racing">
+<div class="race" id="race" tabindex="-1" role="dialog" aria-modal="true" aria-label="赛车 · Racing">
 
   <div class="race__wrap">
     <header class="race__head">
       <div class="phead__idx">03.3 / Racing</div>
       <h2 class="phead__title chrome">RACING</h2>
-      <p class="phead__zh">竞速</p>
+      <p class="phead__zh">赛车</p>
       <p class="race__subt">FOUR WHEELS &amp; TWO WHEELS — FORMULA 1 · MOTOGP</p>
     </header>
 
@@ -2910,7 +2924,7 @@ h2.phead__title{
     </symbol>
   </svg>
 
-  <button class="race__close" type="button" id="raceClose" aria-label="关闭竞速面板">Close ✕</button>
+  <button class="race__close" type="button" id="raceClose" aria-label="关闭赛车面板">Close ✕</button>
 </div>
 
 <!-- ══════════ 运动板块：卡丁车 · 网球 · 骑行（覆盖式面板，从「运动」标签进入） ══════════
@@ -5935,11 +5949,22 @@ function makeEnvMap(renderer){
     var dt = (t - tPrev) / 1000;
     tPrev = t;
     if (dt > 0.25) dt = 0.25;              // 切标签/切后台回来时别一下跳完
-    if (audio && audio.readyState >= 1 && isFinite(audio.duration) && audio.duration > 0){
-      /* 有真实音源时进度以播放位置为准 —— RAF 自己累加会跑偏，
-         暂停、缓冲、后台降频这些情况也都交给 audio.currentTime 说话 */
-      if (cap && audio.currentTime >= cap){ stopRAF(); onEnd(); return; }
-      prog = clamp(audio.currentTime / audio.duration, 0, 1);
+    if (audio){
+      /* ⚠ 音频对象建好了、但元数据还没到（readyState 0 / duration NaN）的时候，
+         绝不能退回“自己按兆底时长累加”：那会用 30 秒的兆底把 prog 推到百分之几，
+         唱片先转出去几十度，等元数据一到又按 currentTime（此刻还是 0）算回来，
+         于是就成了“放上去抽擦一下、再弹回 0 秒重新播”。
+         现在这段空窗原地等：进度条和唱片都停在 0，等真实进度可读再跟着走。 */
+      if (audio.readyState >= 1 && isFinite(audio.duration) && audio.duration > 0){
+        /* 有真实音源时进度以播放位置为准 —— RAF 自己累加会跑偏，
+           暂停、缓冲、后台降频这些情况也都交给 audio.currentTime 说话 */
+        if (cap && audio.currentTime >= cap){ stopRAF(); onEnd(); return; }
+        prog = clamp(audio.currentTime / audio.duration, 0, 1);
+        paint();
+        raf = window.requestAnimationFrame(tick);
+        return;
+      }
+      prog = 0;                          /* 元数据未到：停在开头，不许空跑 */
       paint();
       raf = window.requestAnimationFrame(tick);
       return;
@@ -6315,7 +6340,7 @@ function makeEnvMap(renderer){
 
   var built = false, items = [], shots = [];
   var ph = 0, secTop = 0, shotCur = 0, lastCur = -1, ticking = false;
-  var dragging = null, dragMoved = 0, wheelAcc = 0, wheelAt = 0, wheelDone = false, gesturing = false;
+  var dragging = null, dragMoved = 0, wheelAcc = 0, wheelAt = 0, stepAt = 0, gesturing = false;
 
   function pad(n){ return n < 10 ? '0' + n : '' + n; }
   function clamp01(v){ return v < 0 ? 0 : (v > 1 ? 1 : v); }
@@ -6491,13 +6516,16 @@ function makeEnvMap(renderer){
 
   /* 滚轮：在第二组这一段里接管，竖向滚轮（鼠标滚轮）和横向（触控板横滑）都算，
      鼠标停在图上滚就行。
-     ⚠ 触控板一次滑动会甩出一长串惯性事件，按「每攒够一档就翻一张」来做的话，
-     一划就飞过去四五张。所以这里按 **手势** 而不是按位移来锁：
-     间隔超过 GESTURE_GAP 才认作新的一次手势，一次手势最多翻一张，
-     剩下的惯性全部吃掉（preventDefault），既不切卡也不滚页面。
+     ⚠ 早先这里按「手势」锁死：一次手势最多翻一张，剩下的惯性全部吃掉。
+     鼠标滚轮一格一格地拨没问题，但触控板一次滑动会甩出几百毫秒的连续事件，
+     于是再怎么划都只过去一张 —— 等于滑不动。
+     现在改成 **位移累积 + 步进冷却**：位移一直攒着，攒够一档就翻一张，
+     翻完立刻清零重新攒，所以一次长滑能连贯地翻过去好几张；
+     两张之间留 STEP_GAP 让上一张的动画先落位，不然位移大时会糊成一片。
      翻到第一张 / 最后一张后不再拦截，把滚动交回页面。 */
   var GESTURE_GAP = 180;   /* 静置超过这个毫秒数，下一次滚动算新手势 */
   var WHEEL_TRIGGER = 22;  /* 攒够这么多位移才翻，挡掉指尖轻微蹭到的误触 */
+  var STEP_GAP = 150;      /* 连翻时两张之间至少隔这么久，给动画留出落位时间 */
 
   /* 指针是不是压在正中间那张图上 —— 只有压在它上面的滚动才算「翻页」，
      落在两侧递远的景深卡、标题、左右留白、按钮条，统统算页面滚动放过去
@@ -6524,25 +6552,26 @@ function makeEnvMap(renderer){
       var now = Date.now();
       /* 手势命中情况整段复用一次 —— 一次手势里指针基本不动，没必要每帧都量 */
       if (now - wheelAt > GESTURE_GAP){
-        wheelAcc = 0; wheelDone = false;
+        wheelAcc = 0; stepAt = 0;
         gesturing = overCard(e.clientX, e.clientY);
       }
       wheelAt = now;
       if (!gesturing) return;                            /* 没压在图上 → 交给页面正常滚 */
 
-      var next = shotCur + (s > 0 ? 1 : -1);
+      /* 方向取「攒上这一下的净位移」，来回蹭的时候不会左右抖 */
+      var acc = wheelAcc + s;
+      var dir = acc > 0 ? 1 : (acc < 0 ? -1 : 0);
+      var next = dir ? shotCur + dir : shotCur;
       if (next < 0 || next > shots.length - 1) return;     /* 到头了，交回页面 */
 
-      if (wheelDone){ e.preventDefault(); return; }        /* 这次手势已经翻过一张 */
-
-      wheelAcc += s;
-      if (Math.abs(wheelAcc) < WHEEL_TRIGGER){ e.preventDefault(); return; }
-
-      var dir = wheelAcc > 0 ? 1 : -1;
-      wheelAcc = 0;
-      wheelDone = true;
       e.preventDefault();
-      focusShot(shotCur + dir);
+      wheelAcc = acc;
+      if (Math.abs(wheelAcc) < WHEEL_TRIGGER) return;      /* 还不够一档，先攒着 */
+      if (now - stepAt < STEP_GAP) return;                 /* 上一张还没落位，攒够的下次再翻 */
+
+      wheelAcc = 0;
+      stepAt = now;
+      focusShot(next);
     }, { passive: false });
   }
 
@@ -6724,7 +6753,7 @@ function makeEnvMap(renderer){
   };
 })();
 
-/* ══════════ 竞速板块（#race） ══════════
+/* ══════════ 赛车板块（#race） ══════════
    结构：四轮 2×2 —— 封面格静态 + COURAGE / PROUD / BEAUTY 三格悬停切图；
         两轮 —— NEVER GIVE UP 悬停首图 + 两张可扩展画廊（展开纯 CSS）。
    交互：① 方向感知悬停 —— mouseenter 时按入射角定 data-dir，词从进入侧滑入；
@@ -6918,7 +6947,7 @@ function makeEnvMap(renderer){
   }, true);
   if (closeBt) closeBt.addEventListener('click', close);
 
-  /* ---------- 入口：文字标签 + 画面上「竞速」那一簇 ---------- */
+  /* ---------- 入口：文字标签 + 画面上「赛车」那一簇 ---------- */
   var label = document.querySelector('.ilabel[data-k="race"]');
   if (label){
     label.addEventListener('click', function(e){ e.stopPropagation(); open(); });
@@ -7068,7 +7097,7 @@ function makeEnvMap(renderer){
     }
   }
 
-  /* iframe 内部滚动不要冒泡去翻页（与音乐 / 竞速 / 剪辑同一套拦截策略） */
+  /* iframe 内部滚动不要冒泡去翻页（与音乐 / 赛车 / 剪辑同一套拦截策略） */
   panel.addEventListener('wheel', function(e){ e.stopPropagation(); }, { passive: true });
   var NAV_KEYS = { ArrowDown:1, ArrowUp:1, PageDown:1, PageUp:1, Home:1, End:1 };
   window.addEventListener('keydown', function(e){
